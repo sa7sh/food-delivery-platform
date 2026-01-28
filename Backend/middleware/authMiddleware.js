@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import TokenBlocklist from "../models/TokenBlocklist.js";
 
 const protect = async (req, res, next) => {
   let token;
@@ -10,6 +11,20 @@ const protect = async (req, res, next) => {
   ) {
     try {
       token = req.headers.authorization.split(" ")[1];
+    } catch (error) {
+      console.error(error);
+    }
+  } else if (req.cookies && req.cookies.token) {
+    token = req.cookies.token;
+  }
+
+  if (token) {
+    try {
+      // Check if token is blocked
+      const isBlocked = await TokenBlocklist.findOne({ token });
+      if (isBlocked) {
+        return res.status(401).json({ message: "Not authorized, token revoked" });
+      }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET || "temp_secret");
 
@@ -24,9 +39,7 @@ const protect = async (req, res, next) => {
       console.error(error);
       res.status(401).json({ message: "Not authorized, token failed" });
     }
-  }
-
-  if (!token) {
+  } else {
     res.status(401).json({ message: "Not authorized, no token" });
   }
 };

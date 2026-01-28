@@ -39,8 +39,15 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ message: "Phone number is too long" });
     }
 
+    if (!email.includes("@")) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
+
     // Normalize email: trim, lowercase, and remove plus-addressing
     const [localPart, domain] = email.split("@");
+    if (!domain) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
     const normalizedLocal = localPart.split("+")[0].trim().toLowerCase();
     const normalizedDomain = domain.trim().toLowerCase();
     const normalizedEmail = `${normalizedLocal}@${normalizedDomain}`;
@@ -109,7 +116,13 @@ router.post("/login", async (req, res) => {
     }
 
     // Normalize email
+    if (!email.includes("@")) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
     const [localPart, domain] = email.split("@");
+    if (!domain) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
     const normalizedLocal = localPart.split("+")[0].trim().toLowerCase();
     const normalizedDomain = domain.trim().toLowerCase();
     const normalizedEmail = `${normalizedLocal}@${normalizedDomain}`;
@@ -159,12 +172,17 @@ router.post("/login", async (req, res) => {
  */
 router.post("/logout", async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(400).json({ message: "No token provided" });
+    let token;
+
+    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+      token = req.headers.authorization.split(" ")[1];
+    } else if (req.cookies && req.cookies.token) {
+      token = req.cookies.token;
     }
 
-    const token = authHeader.split(" ")[1];
+    if (!token) {
+      return res.status(400).json({ message: "No token provided" });
+    }
 
     await TokenBlocklist.create({ token });
 
@@ -182,12 +200,16 @@ router.post("/logout", async (req, res) => {
  */
 router.delete("/delete-account", async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "No token provided" });
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+      token = req.headers.authorization.split(" ")[1];
+    } else if (req.cookies && req.cookies.token) {
+      token = req.cookies.token;
     }
 
-    const token = authHeader.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ message: "No token provided" });
+    }
 
     // Verify token
     let decoded;

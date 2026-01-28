@@ -95,6 +95,15 @@ router.post("/food-items", authMiddleware, async (req, res) => {
     if (!name || !price || !category) {
       return res.status(400).json({ message: "Name, Price, and Category are required" });
     }
+    if (name.length > 100) return res.status(400).json({ message: "Name must be under 100 characters" });
+    if (description && description.length > 500) return res.status(400).json({ message: "Description must be under 500 characters" });
+    if (category.length > 50) return res.status(400).json({ message: "Category must be under 50 characters" });
+
+    // XSS Protection: Reject HTML tags
+    if ([name, description, category].some(field => field && /[<>]/.test(field))) {
+      return res.status(400).json({ message: "Invalid characters detected (HTML tags are not allowed)" });
+    }
+
 
     const foodItem = await FoodItem.create({
       restaurantId: req.user.userId,
@@ -126,7 +135,18 @@ router.get("/food-items", authMiddleware, async (req, res) => {
 router.put("/food-items/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const { name, description, price, category, imageUrl, isAvailable } = req.body;
+
+    // Validation
+    if (name && name.length > 100) return res.status(400).json({ message: "Name must be under 100 characters" });
+    if (description && description.length > 500) return res.status(400).json({ message: "Description must be under 500 characters" });
+    if (category && category.length > 50) return res.status(400).json({ message: "Category must be under 50 characters" });
+
+    // XSS Protection: Reject HTML tags
+    if ([name, description, category].some(field => field && /[<>]/.test(field))) {
+      return res.status(400).json({ message: "Invalid characters detected (HTML tags are not allowed)" });
+    }
+
 
     // Ensure the food item belongs to the logged-in restaurant
     const foodItem = await FoodItem.findOne({ _id: id, restaurantId: req.user.userId });
@@ -135,7 +155,18 @@ router.put("/food-items/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "Food item not found or unauthorized" });
     }
 
-    const updatedItem = await FoodItem.findByIdAndUpdate(id, updateData, { new: true });
+    const updatedItem = await FoodItem.findByIdAndUpdate(
+      id,
+      {
+        name,
+        description,
+        price,
+        category,
+        imageUrl,
+        isAvailable,
+      },
+      { new: true }
+    );
     res.json(updatedItem);
   } catch (error) {
     res.status(500).json({ message: error.message });

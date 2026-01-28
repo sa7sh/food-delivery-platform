@@ -35,6 +35,18 @@ router.put("/profile", protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
 
+    // Input Validation
+    if (req.body.name && req.body.name.length > 100) return res.status(400).json({ message: "Name must be under 100 characters" });
+    if (req.body.email && req.body.email.length > 254) return res.status(400).json({ message: "Email must be under 254 characters" });
+    if (req.body.phone && req.body.phone.length > 20) return res.status(400).json({ message: "Phone must be under 20 characters" });
+    if (req.body.profileImage && req.body.profileImage.length > 1048576) return res.status(400).json({ message: "Profile image URI is too long" }); // 1MB limit for URI string just in case
+
+    // XSS Protection: Reject HTML tags
+    if ([req.body.name, req.body.email, req.body.phone].some(field => field && /[<>]/.test(field))) {
+      return res.status(400).json({ message: "Invalid characters detected (HTML tags are not allowed)" });
+    }
+
+
     if (user) {
       user.name = req.body.name || user.name;
       user.email = req.body.email || user.email;
