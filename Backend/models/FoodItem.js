@@ -33,6 +33,10 @@ const foodItemSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    tags: [{
+      type: String,
+      trim: true
+    }],
     isAvailable: {
       type: Boolean,
       default: true,

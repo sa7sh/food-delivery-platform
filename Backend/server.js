@@ -8,6 +8,7 @@ import cookieParser from "cookie-parser";
 import restaurantRoutes from "./routes/restaurantRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import publicRoutes from "./routes/publicRoutes.js";
 
 console.log("Starting server...");
 
@@ -38,6 +39,7 @@ const authLimiter = rateLimit({
 app.use("/api/restaurant", restaurantRoutes);
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/public", publicRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
