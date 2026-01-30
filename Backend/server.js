@@ -5,45 +5,75 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 
-import restaurantRoutes from "./routes/restaurantRoutes.js";
-import authRoutes from "./routes/authRoutes.js";
-import userRoutes from "./routes/userRoutes.js";
-import publicRoutes from "./routes/publicRoutes.js";
+// Routes
+import apiRoutes from "./routes/apiRoutes.js";
+import foodRoutes from "./routes/foodRoutes.js";
+
+// Load env variables
+dotenv.config();
+
+// ===============================
+// 1️⃣ Create Express App FIRST
+// ===============================
+const app = express();
 
 console.log("Starting server...");
 
-dotenv.config();
+// ===============================
+// 2️⃣ Global Middlewares
+// ===============================
+app.use(
+  cors({
+    origin: "*", // allow all origins for now (dev)
+    credentials: true,
+  })
+);
 
-const app = express(); // ✅ app is created FIRST
-
-// middlewares
-app.use(cors({
-  origin: "*", // Allow ALL origins for debugging
-  credentials: true,
-}));
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
 
-// Rate Limiter for Auth Routes
-// Rate Limiter for Auth Routes
+// ===============================
+// 3️⃣ Rate Limiter (Auth Only)
+// ===============================
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // Strict limit: 20 requests per 15 min to prevent brute force
-  message: { message: "Too many login attempts, please try again later." },
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  max: 20,
+  message: {
+    message: "Too many login attempts, please try again later.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
-// routes (AFTER app is created)
-app.use("/api/restaurant", restaurantRoutes);
-app.use("/api/auth", authLimiter, authRoutes);
-app.use("/api/user", userRoutes);
-app.use("/api/public", publicRoutes);
+// ===============================
+// 4️⃣ Routes (AFTER app creation)
+// ===============================
 
-// Global Error Handler
+// Other API routes (MUST come before auth routes to avoid interception)
+app.use("/api", apiRoutes);
+
+// Auth routes (with limiter) - more specific path
+app.use("/api/auth", authLimiter, apiRoutes);
+
+// Food routes (used by ALL apps)
+app.use("/api/foods", foodRoutes);
+
+// ===============================
+// 5️⃣ Test Routes
+// ===============================
+app.get("/", (req, res) => {
+  res.send("Backend is running");
+});
+
+app.get("/test", (req, res) => {
+  res.send("Backend working");
+});
+
+// ===============================
+// 6️⃣ Global Error Handler
+// ===============================
 app.use((err, req, res, next) => {
-  // Handle Malformed JSON (SyntaxError)
   if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
     return res.status(400).json({ message: "Invalid JSON format" });
   }
@@ -52,20 +82,20 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: "Internal Server Error" });
 });
 
-// test route
-app.get("/", (req, res) => {
-  res.send("Backend is running");
-});
-
-// database connection
+// ===============================
+// 7️⃣ Database Connection
+// ===============================
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.error(err));
+  .catch((err) => console.error("MongoDB Error:", err));
 
-// start server
+// ===============================
+// 8️⃣ Start Server
+// ===============================
 const PORT = process.env.PORT || 5000;
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Backend accessible at http://192.168.29.228:${PORT}`);
+  console.log(`Backend accessible at http://localhost:${PORT}`);
 });
