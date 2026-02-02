@@ -2,7 +2,7 @@
   "expo": {
     "name": "FoodDeliveryApp",
     "slug": "food-delivery-app",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -26,13 +26,17 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.yourcompany.fooddelivery"
+      "package": "com.yourcompany.fooddelivery",
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiBaseUrl": "http://192.168.29.228:5000/api"
+      "apiBaseUrl": "https://gurudipaksalviprivatelimited.com/treato-api",
+      "eas": {
+        "projectId": "e5f1e098-748e-441b-9884-2f808151ccf7"
+      }
     }
   }
 }
