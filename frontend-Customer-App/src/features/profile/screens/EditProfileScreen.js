@@ -17,7 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useUserStore, useAuthStore } from '../../../store';
+import { useAuthStore } from '../../../store/authStore';
+import { useUserStore } from '../../../store/userStore';
 import { useTheme } from '../../../hooks/useTheme';
 
 const CustomInput = ({ label, icon, value, onChangeText, error, placeholder, colors, ...props }) => {

@@ -14,6 +14,7 @@ export default function FoodCard({ food, onPress }) {
     name = 'Food Item',
     type = 'General',
     restaurantId,
+    isVeg = true,
   } = food || {};
 
   // Extract restaurant info if populated
@@ -77,6 +78,9 @@ export default function FoodCard({ food, onPress }) {
           <Text style={styles.restaurantName} numberOfLines={1}>
             {restaurantName}
           </Text>
+          <View style={[styles.vegIcon, { borderColor: isVeg ? '#22C55E' : '#EF4444' }]}>
+            <View style={[styles.vegDot, { backgroundColor: isVeg ? '#22C55E' : '#EF4444' }]} />
+          </View>
         </View>
 
         <Text style={styles.subtitle} numberOfLines={1}>
@@ -221,5 +225,18 @@ const styles = StyleSheet.create({
     color: '#CBD5E1',
     fontSize: 10,
     fontWeight: '600',
+  },
+  vegIcon: {
+    width: 12,
+    height: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
+  },
+  vegDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
 });

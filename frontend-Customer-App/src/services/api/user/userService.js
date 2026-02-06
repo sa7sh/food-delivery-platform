@@ -37,4 +37,14 @@ export const userService = {
     // TODO: Replace with actual API call
     return httpClient.delete(`${API_ENDPOINTS.ADDRESSES}/${addressId}`);
   },
+
+  // Get Favorites
+  async getFavorites() {
+    return httpClient.get('/user/favorites');
+  },
+
+  // Toggle Favorite
+  async toggleFavorite(restaurantId) {
+    return httpClient.post(`/user/favorites/${restaurantId}`);
+  },
 };

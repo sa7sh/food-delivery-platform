@@ -14,8 +14,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useCartStore, useRestaurantStore } from '../../../store';
+import { useCartStore, useRestaurantStore, useUserStore } from '../../../store';
 import { useTheme } from '../../../hooks/useTheme';
+import { reviewService } from '../../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -23,9 +24,12 @@ export default function RestaurantDetailScreen({ route, navigation }) {
   const { restaurant } = route.params || {};
   const { colors, isDark } = useTheme();
   const [selectedCategory, setSelectedCategory] = useState('Popular');
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [ratingStats, setRatingStats] = useState({ averageRating: 0, totalReviews: 0 });
 
   // Get cart state
   const { totalItems, total, addItem } = useCartStore();
+  const { favorites, toggleFavorite } = useUserStore();
 
   // Animation scroll value for header effects
   // Using useRef to persist value across renders
@@ -35,12 +39,13 @@ export default function RestaurantDetailScreen({ route, navigation }) {
   const restaurantData = {
     id: restaurant?._id || restaurant?.id || '1',
     name: restaurant?.name || 'Restaurant',
-    rating: restaurant?.rating || 4.5,
-    reviews: restaurant?.reviews || '0',
-    image: restaurant?.profileImage || restaurant?.image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800',
+    rating: ratingStats.averageRating || 0,
+    reviews: ratingStats.totalReviews || 0,
+    image: restaurant?.restaurantImage || restaurant?.profileImage || restaurant?.image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800',
     tags: restaurant?.cuisineType ? [restaurant.cuisineType] : ['Restaurant'],
     time: '25-35 min',
     deliveryFee: 'Free Delivery',
+    isOpen: restaurant?.isOpen !== undefined ? restaurant.isOpen : true,
   };
 
   // Use _id from MongoDB or fallback to id
@@ -50,10 +55,28 @@ export default function RestaurantDetailScreen({ route, navigation }) {
 
   useEffect(() => {
     if (restaurantId) {
-      console.log('Fetching menu for restaurant ID:', restaurantId);
       fetchMenu(restaurantId);
+      fetchRatings(restaurantId);
     }
   }, [restaurantId]);
+
+  const fetchRatings = async (id) => {
+    try {
+      const data = await reviewService.getRestaurantReviews(id);
+      // httpClient response interceptor returns response.data, so data is already unwrapped
+      // Backend returns { reviews: [], stats: { averageRating, totalReviews } }
+      if (data && data.stats) {
+        setRatingStats(data.stats);
+      } else {
+        // Fallback to default values if stats not available
+        setRatingStats({ averageRating: 0, totalReviews: 0 });
+      }
+    } catch (error) {
+      console.error('Error fetching ratings:', error);
+      // Set default values on error
+      setRatingStats({ averageRating: 0, totalReviews: 0 });
+    }
+  };
 
   // Derive categories from menu data
   const categories = menu.map(cat => cat.name);
@@ -65,8 +88,16 @@ export default function RestaurantDetailScreen({ route, navigation }) {
     }
   }, [categories]);
 
-  // Get items for selected category
-  const activeItems = menu.find(cat => cat.name === selectedCategory)?.items || [];
+  // Get items for selected category and apply filters
+  const categoryItems = menu.find(cat => cat.name === selectedCategory)?.items || [];
+
+  const filteredItems = categoryItems.filter(item => {
+    if (activeFilter === 'veg') return item.isVeg;
+    if (activeFilter === 'non-veg') return !item.isVeg;
+    if (activeFilter === 'rated') return (item.rating || 4.2) >= 4.0; // Mock rating for now
+    if (activeFilter === 'bestseller') return (item.price > 200); // Mock rule: pricey = bestseller
+    return true;
+  });
 
   // Handler to add item to cart
   const handleAddToCart = (item) => {
@@ -114,6 +145,13 @@ export default function RestaurantDetailScreen({ route, navigation }) {
             <Ionicons name="share-outline" size={22} color={isDark ? '#fff' : colors.text} />
           </TouchableOpacity>
         </SafeAreaView>
+
+        {!restaurantData.isOpen && (
+          <View style={styles.closedBanner}>
+            <Text style={styles.closedBannerText}>RESTAURANT CLOSED</Text>
+            <Text style={styles.closedBannerSub}>Not accepting orders right now</Text>
+          </View>
+        )}
       </View>
 
       <ScrollView
@@ -126,8 +164,12 @@ export default function RestaurantDetailScreen({ route, navigation }) {
           <View style={[styles.indicator, { backgroundColor: colors.border }]} />
           <View style={styles.titleRow}>
             <Text style={[styles.restaurantName, { color: colors.text }]}>{restaurantData.name}</Text>
-            <TouchableOpacity>
-              <Ionicons name="heart-outline" size={28} color={colors.primary[500]} />
+            <TouchableOpacity onPress={() => toggleFavorite(restaurantId)}>
+              <Ionicons
+                name={favorites.some(f => (f._id || f) === restaurantId) ? "heart" : "heart-outline"}
+                size={28}
+                color={favorites.some(f => (f._id || f) === restaurantId) ? "#E23744" : colors.primary[500]}
+              />
             </TouchableOpacity>
           </View>
 
@@ -155,6 +197,40 @@ export default function RestaurantDetailScreen({ route, navigation }) {
               <Text style={[styles.statValue, { color: colors.text }]}>2.4 km</Text>
             </View>
           </View>
+        </View>
+
+        {/* Filters Bar */}
+        <View style={[styles.filtersWrapper, { backgroundColor: colors.background }]}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filtersContainer}
+          >
+            {['all', 'veg', 'non-veg', 'bestseller', 'rated'].map((filter) => (
+              <TouchableOpacity
+                key={filter}
+                style={[
+                  styles.filterChip,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  activeFilter === filter && { backgroundColor: colors.primary[500], borderColor: colors.primary[500] }
+                ]}
+                onPress={() => setActiveFilter(activeFilter === filter ? 'all' : filter)}
+              >
+                {filter === 'veg' && <View style={[styles.vegDot, { backgroundColor: activeFilter === 'veg' ? '#fff' : '#22C55E' }]} />}
+                {filter === 'non-veg' && <View style={[styles.vegDot, { backgroundColor: activeFilter === 'non-veg' ? '#fff' : '#EF4444' }]} />}
+                <Text style={[
+                  styles.filterText,
+                  { color: activeFilter === filter ? '#fff' : colors.text },
+                  filter === 'rated' && { fontWeight: '700' }
+                ]}>
+                  {filter === 'all' ? 'All' :
+                    filter === 'veg' ? 'Pure Veg' :
+                      filter === 'non-veg' ? 'Non-Veg' :
+                        filter === 'bestseller' ? 'Bestseller' : 'Rated 4+'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {/* Categories Selector */}
@@ -189,16 +265,31 @@ export default function RestaurantDetailScreen({ route, navigation }) {
 
         {/* Menu Items List */}
         <View style={styles.menuSection}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>{selectedCategory}</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            {selectedCategory} ({filteredItems.length})
+          </Text>
 
-          {activeItems.map((item) => (
+          {filteredItems.map((item) => (
             <TouchableOpacity
               key={item.id}
               style={[styles.menuItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
               activeOpacity={0.7}
             >
               <View style={styles.menuItemInfo}>
-                <Text style={[styles.menuItemName, { color: colors.text }]}>{item.name}</Text>
+                <View style={styles.menuItemHeader}>
+                  <Text style={[styles.menuItemName, { color: colors.text }]}>{item.name}</Text>
+                  {item.averageRating > 0 && (
+                    <View style={styles.ratingContainer}>
+                      <Ionicons name="star" size={14} color="#F59E0B" />
+                      <Text style={[styles.ratingText, { color: colors.text }]}>
+                        {item.averageRating}
+                      </Text>
+                      <Text style={[styles.reviewCount, { color: colors.textSub }]}>
+                        ({item.totalReviews})
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={[styles.menuItemDescription, { color: colors.textSub }]} numberOfLines={2}>
                   {item.description}
                 </Text>
@@ -208,16 +299,20 @@ export default function RestaurantDetailScreen({ route, navigation }) {
               <View style={styles.imageContainer}>
                 <Image source={{ uri: item.image }} style={styles.menuItemImage} />
                 <TouchableOpacity
-                  style={[styles.plusButton, { backgroundColor: colors.primary[500], borderColor: colors.surface }]}
+                  style={[
+                    styles.plusButton,
+                    { backgroundColor: restaurantData.isOpen ? colors.primary[500] : colors.gray[400], borderColor: colors.surface }
+                  ]}
+                  disabled={!restaurantData.isOpen}
                   onPress={() => handleAddToCart(item)}
                 >
-                  <Ionicons name="add" size={20} color="#fff" />
+                  <Ionicons name={restaurantData.isOpen ? "add" : "lock-closed"} size={20} color="#fff" />
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
           ))}
 
-          {activeItems.length === 0 && (
+          {filteredItems.length === 0 && (
             <View style={{ padding: 20, alignItems: 'center' }}>
               <Text style={{ color: colors.textSub }}>No items in this category</Text>
             </View>
@@ -228,20 +323,22 @@ export default function RestaurantDetailScreen({ route, navigation }) {
       </ScrollView>
 
       {/* Bottom Cart Bar - Only show when cart has items */}
-      {totalItems > 0 && (
-        <View style={[styles.cartBarContainer, { backgroundColor: isDark ? 'rgba(30,30,30,0.95)' : 'rgba(248, 250, 252, 0.9)' }]}>
-          <TouchableOpacity
-            style={[styles.cartButton, { backgroundColor: colors.primary[500], shadowColor: colors.primary[500] }]}
-            onPress={() => navigation.navigate('Cart')}
-          >
-            <View style={[styles.cartBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-              <Text style={[styles.cartBadgeText, { color: '#fff' }]}>{totalItems}</Text>
-            </View>
-            <Text style={[styles.cartButtonText, { color: '#fff' }]}>View Cart</Text>
-            <Text style={[styles.cartTotal, { color: '#fff' }]}>₹{total.toFixed(0)}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      {
+        totalItems > 0 && (
+          <View style={[styles.cartBarContainer, { backgroundColor: isDark ? 'rgba(30,30,30,0.95)' : 'rgba(248, 250, 252, 0.9)' }]}>
+            <TouchableOpacity
+              style={[styles.cartButton, { backgroundColor: colors.primary[500], shadowColor: colors.primary[500] }]}
+              onPress={() => navigation.navigate('Cart')}
+            >
+              <View style={[styles.cartBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                <Text style={[styles.cartBadgeText, { color: '#fff' }]}>{totalItems}</Text>
+              </View>
+              <Text style={[styles.cartButtonText, { color: '#fff' }]}>View Cart</Text>
+              <Text style={[styles.cartTotal, { color: '#fff' }]}>₹{total.toFixed(0)}</Text>
+            </TouchableOpacity>
+          </View>
+        )
+      }
     </View>
   );
 }
@@ -472,5 +569,56 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  closedBanner: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closedBannerText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  closedBannerSub: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  filtersWrapper: {
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  filtersContainer: {
+    paddingHorizontal: 24,
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  filterText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  vegDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
 });

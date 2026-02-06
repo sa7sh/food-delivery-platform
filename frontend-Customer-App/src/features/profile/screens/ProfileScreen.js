@@ -15,7 +15,10 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { ROUTES } from '../../../constants';
-import { useAuthStore, useUserStore, useCartStore, useOrdersStore } from '../../../store';
+import { useAuthStore } from '../../../store/authStore';
+import { useUserStore } from '../../../store/userStore';
+import { useCartStore } from '../../../store/cartStore';
+import { useOrdersStore } from '../../../store/ordersStore';
 import { useTheme } from '../../../hooks/useTheme';
 import { authService } from '../../../services/api/auth/authService';
 
@@ -228,6 +231,14 @@ export default function ProfileScreen() {
           <Text style={[styles.sectionLabel, { color: colors.textSub }]}>Account Settings</Text>
           <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: isDark ? '#000' : '#0F172A' }]}>
             <MenuOption
+              icon="heart-outline"
+              title="My Favorites"
+              onPress={() => navigation.navigate(ROUTES.FAVORITES)}
+              colors={colors}
+              isDark={isDark}
+            />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <MenuOption
               icon="location-outline"
               title="Saved Addresses"
               subtitle="Home, Work, and more"
@@ -256,7 +267,7 @@ export default function ProfileScreen() {
             <MenuOption
               icon="notifications-outline"
               title="Notifications"
-              onPress={() => { }}
+              onPress={() => Alert.alert('Coming Soon', 'This feature is coming soon!')}
               colors={colors} isDark={isDark}
             />
             <View style={[styles.divider, { backgroundColor: colors.border }]} />

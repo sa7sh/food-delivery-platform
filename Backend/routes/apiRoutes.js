@@ -1,12 +1,96 @@
 import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import fs from "fs"; // Added for debugging
 import User from "../models/User.js";
 import TokenBlocklist from "../models/TokenBlocklist.js";
 import FoodItem from "../models/FoodItem.js";
+import Order from "../models/Order.js";
 import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
+// Get Restaurant Stats - MOVED TO TOP to avoid shadowing
+router.get("/restaurant/stats", protect, async (req, res) => {
+  try {
+    console.log(`[Backend] GET /restaurant/stats HIT for: ${req.user._id}`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const matchStage = {
+      restaurantId: req.user._id,
+      createdAt: { $gte: today }
+    };
+
+    // Calculate today's stats
+    const todayStatsPromise = Order.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: "$totalAmount" },
+          orderCount: { $sum: 1 },
+          activeOrders: {
+            $sum: {
+              $cond: [{ $in: ["$status", ["pending", "preparing", "ready"]] }, 1, 0]
+            }
+          }
+        }
+      }
+    ]);
+
+    // Calculate weekly stats
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(today.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const weeklyStatsPromise = Order.aggregate([
+      {
+        $match: {
+          restaurantId: req.user._id,
+          createdAt: { $gte: sevenDaysAgo }
+        }
+      },
+      {
+        $group: {
+          _id: { $dayOfWeek: "$createdAt" },
+          revenue: { $sum: "$totalAmount" }
+        }
+      }
+    ]);
+
+    const [todayResult, weeklyResult] = await Promise.all([todayStatsPromise, weeklyStatsPromise]);
+
+    const stats = todayResult[0] || { totalRevenue: 0, orderCount: 0, activeOrders: 0 };
+    console.log(`[Backend] Stats calculated: ${JSON.stringify(stats)}`);
+
+    // Format weekly data ensuring all days are represented
+    const daysMap = { 1: "Sun", 2: "Mon", 3: "Tue", 4: "Wed", 5: "Thu", 6: "Fri", 7: "Sat" };
+    const labels = [];
+    const data = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dayIndex = d.getDay() + 1;
+      labels.push(daysMap[dayIndex]);
+
+      const found = weeklyResult.find(r => r._id === dayIndex);
+      data.push(found ? found.revenue : 0);
+    }
+
+    res.json({
+      todayOrdersCount: stats.orderCount,
+      todayRevenue: stats.totalRevenue,
+      activeOrders: stats.activeOrders,
+      weeklyStats: { labels, data }
+    });
+
+  } catch (error) {
+    console.error("Stats Error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
 
 /**
  * =========================================================================
@@ -68,7 +152,9 @@ router.post("/auth/register", async (req, res) => {
       password: hashedPassword,
       name: name || "",
       phone: phone || "",
-      role: "user",
+      role: (req.body.role && ["user", "customer", "restaurant"].includes(req.body.role))
+        ? req.body.role
+        : "user",
     });
 
     // Generate Token
@@ -159,6 +245,10 @@ router.post("/auth/login", async (req, res) => {
         name: user.name,
         phone: user.phone,
         role: user.role,
+        isOpen: user.isOpen,
+        restaurantImage: user.restaurantImage,
+        cuisineType: user.cuisineType,
+        address: user.addresses && user.addresses.length > 0 ? user.addresses[0].street : "",
       },
     });
   } catch (error) {
@@ -233,21 +323,166 @@ router.delete("/auth/delete-account", async (req, res) => {
 });
 
 
+// ============================================
+// FAVORITES ROUTES
+// ============================================
+
+// Get User Favorites
+router.get("/user/favorites", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate({
+      path: "favorites",
+      select: "-password -favorites", // Exclude sensitive data
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json(user.favorites);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Toggle Favorite
+router.post("/user/favorites/:restaurantId", protect, async (req, res) => {
+  try {
+    const { restaurantId } = req.params;
+    console.log(`[Backend] Toggling favorite for User: ${req.user._id}, Restaurant: ${restaurantId}`);
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Ensure favorites array exists
+    if (!user.favorites) user.favorites = [];
+
+    const index = user.favorites.indexOf(restaurantId);
+    let isFavorited = false;
+
+    if (index === -1) {
+      // Add to favorites
+      console.log('[Backend] Adding to favorites');
+      user.favorites.push(restaurantId);
+      isFavorited = true;
+    } else {
+      // Remove from favorites
+      console.log('[Backend] Removing from favorites');
+      user.favorites.splice(index, 1);
+      isFavorited = false;
+    }
+
+    await user.save();
+    console.log(`[Backend] User saved. Favorites count: ${user.favorites.length}`);
+
+    res.json({ success: true, isFavorited, favorites: user.favorites });
+  } catch (error) {
+    console.error('[Backend] Toggle error:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+
 /**
  * =========================================================================
  * RESTAURANT ROUTES
  * =========================================================================
  */
 
+// Get Restaurant Stats
+router.get("/restaurant/stats", protect, async (req, res) => {
+  try {
+    console.log(`[Backend] GET /restaurant/stats HIT for User: ${req.user._id}`);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Today's stats
+    const todayStats = await Order.aggregate([
+      { $match: { restaurantId: req.user._id, createdAt: { $gte: today } } },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: "$totalAmount" },
+          orderCount: { $sum: 1 },
+          activeOrders: {
+            $sum: {
+              $cond: [{ $in: ["$status", ["pending", "preparing", "ready"]] }, 1, 0]
+            }
+          }
+        }
+      }
+    ]);
+
+    const stats = todayStats[0] || { totalRevenue: 0, orderCount: 0, activeOrders: 0 };
+
+    // Weekly stats (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(today.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const weeklyStats = await Order.aggregate([
+      {
+        $match: {
+          restaurantId: req.user._id,
+          createdAt: { $gte: sevenDaysAgo }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          revenue: { $sum: "$totalAmount" }
+        }
+      },
+      { $sort: { _id: 1 } } // Sort by date
+    ]);
+
+    // Format weekly data ensuring all 7 days are represented
+    const daysMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const labels = [];
+    const data = [];
+    const weeklyDataMap = new Map(weeklyStats.map(item => [item._id, item.revenue]));
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateString = d.toISOString().split('T')[0]; // YYYY-MM-DD
+      labels.push(daysMap[d.getDay()]);
+      data.push(weeklyDataMap.get(dateString) || 0);
+    }
+
+    res.json({
+      todayOrdersCount: stats.orderCount,
+      todayRevenue: stats.totalRevenue,
+      activeOrders: stats.activeOrders,
+      weeklyStats: {
+        labels,
+        data
+      }
+    });
+
+  } catch (error) {
+    console.error("[Backend] Stats Error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Get Restaurant Profile
 router.get("/restaurant/profile", protect, async (req, res) => {
   try {
+    console.log(`[Backend] GET /restaurant/profile HIT for User: ${req.user._id}`);
     const user = await User.findById(req.user._id).select("-password");
     if (!user) {
+      console.log(`[Backend] Restaurant not found for ID: ${req.user._id}`);
       return res.status(404).json({ message: "Restaurant not found" });
     }
+    console.log(`[Backend] Returning profile for: ${user.email}`);
     res.json(user);
   } catch (error) {
+    console.error("[Backend] GET /restaurant/profile ERROR:", error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -255,7 +490,14 @@ router.get("/restaurant/profile", protect, async (req, res) => {
 // Update Restaurant Profile
 router.put("/restaurant/profile", protect, async (req, res) => {
   try {
-    const { name, phone, address, cuisineType, isOpen, profileImage } = req.body;
+    const { name, phone, address, cuisineType, isOpen, profileImage, restaurantImage } = req.body;
+
+    try {
+      const logMsg = `[${new Date().toISOString()}] PUT /restaurant/profile HIT\nUser: ${req.user._id}\nBody: ${JSON.stringify(req.body)}\nisOpen: ${isOpen} (${typeof isOpen})\n\n`;
+      fs.appendFileSync('backend_debug.log', logMsg);
+    } catch (err) { console.error("Log error", err); }
+
+    console.log("PUT /restaurant/profile HIT");
 
     // XSS Protection
     if ([name, address, cuisineType, phone].some(field => field && /[<>]/.test(field))) {
@@ -279,9 +521,19 @@ router.put("/restaurant/profile", protect, async (req, res) => {
     }
     user.cuisineType = cuisineType || user.cuisineType;
     user.isOpen = isOpen !== undefined ? isOpen : user.isOpen;
-    if (profileImage) user.profileImage = profileImage;
+
+    // Handle both images separately
+    if (profileImage !== undefined) {
+      console.log(`Updating profileImage: ${profileImage ? profileImage.substring(0, 20) + '...' : 'null'}`);
+      user.profileImage = profileImage;
+    }
+    if (restaurantImage !== undefined) {
+      console.log(`Updating restaurantImage: ${restaurantImage ? restaurantImage.substring(0, 20) + '...' : 'null'} (Length: ${restaurantImage ? restaurantImage.length : 0})`);
+      user.restaurantImage = restaurantImage;
+    }
 
     const updatedUser = await user.save();
+    console.log(`User saved. restaurantImage in DB: ${!!updatedUser.restaurantImage}`);
     const responseUser = updatedUser.toObject();
     delete responseUser.password;
 
@@ -312,107 +564,18 @@ router.delete("/restaurant/profile", protect, async (req, res) => {
 });
 
 
+
+
+
 /**
  * =========================================================================
  * FOOD ITEM ROUTES
  * =========================================================================
+ * 
+ * MOVED TO: routes/foodRoutes.js
+ * 
  */
 
-// Create Food Item
-router.post("/restaurant/food-items", protect, async (req, res) => {
-  try {
-    const { name, description, price, category, imageUrl, isAvailable } = req.body;
-
-    if (!name || !price || !category) {
-      return res.status(400).json({ message: "Name, Price, and Category are required" });
-    }
-    if (name.length > 100) return res.status(400).json({ message: "Name must be under 100 characters" });
-    if (description && description.length > 500) return res.status(400).json({ message: "Description must be under 500 characters" });
-    if (category.length > 50) return res.status(400).json({ message: "Category must be under 50 characters" });
-
-    if ([name, description, category].some(field => field && /[<>]/.test(field))) {
-      return res.status(400).json({ message: "Invalid characters detected (HTML tags are not allowed)" });
-    }
-
-    const foodItem = await FoodItem.create({
-      restaurantId: req.user._id, // req.user is set by protect middleware
-      name,
-      description,
-      price,
-      category,
-      imageUrl,
-      isAvailable: isAvailable !== undefined ? isAvailable : true,
-    });
-
-    res.status(201).json(foodItem);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Get All Food Items (for logged-in restaurant)
-router.get("/restaurant/food-items", protect, async (req, res) => {
-  try {
-    const foodItems = await FoodItem.find({ restaurantId: req.user._id }).sort({ createdAt: -1 });
-    res.json(foodItems);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Update Food Item
-router.put("/restaurant/food-items/:id", protect, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, description, price, category, imageUrl, isAvailable } = req.body;
-
-    if (name && name.length > 100) return res.status(400).json({ message: "Name must be under 100 characters" });
-    if (description && description.length > 500) return res.status(400).json({ message: "Description must be under 500 characters" });
-    if (category && category.length > 50) return res.status(400).json({ message: "Category must be under 50 characters" });
-
-    if ([name, description, category].some(field => field && /[<>]/.test(field))) {
-      return res.status(400).json({ message: "Invalid characters detected (HTML tags are not allowed)" });
-    }
-
-    const foodItem = await FoodItem.findOne({ _id: id, restaurantId: req.user._id });
-
-    if (!foodItem) {
-      return res.status(404).json({ message: "Food item not found or unauthorized" });
-    }
-
-    const updatedItem = await FoodItem.findByIdAndUpdate(
-      id,
-      {
-        name,
-        description,
-        price,
-        category,
-        imageUrl,
-        isAvailable,
-      },
-      { new: true }
-    );
-    res.json(updatedItem);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Delete Food Item
-router.delete("/restaurant/food-items/:id", protect, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const deletedItem = await FoodItem.findOneAndDelete({ _id: id, restaurantId: req.user._id });
-
-    if (!deletedItem) {
-      return res.status(404).json({ message: "Food item not found or unauthorized" });
-    }
-
-    res.json({ message: "Food item deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
 
 
 /**
@@ -545,10 +708,60 @@ router.delete("/user/addresses/:id", protect, async (req, res) => {
 // GET ALL RESTAURANTS (Public)
 router.get("/public/restaurants", async (req, res) => {
   try {
-    const restaurants = await User.find({ role: 'user' })
-      .select('-password -email -phone -addresses')
-      .sort({ createdAt: -1 });
-    res.json(restaurants);
+    console.log(`[Backend] GET /public/restaurants HIT`);
+    console.log(`Query: ${JSON.stringify(req.query)}`);
+
+    const { cuisine, isOpen, query, page = 1, limit = 20 } = req.query;
+    let dbQuery = { role: { $in: ['user', 'restaurant'] } };
+
+    if (cuisine) {
+      dbQuery.cuisineType = { $regex: cuisine, $options: 'i' };
+    }
+
+    // Handle both boolean true and string 'true'
+    if (isOpen === true || isOpen === 'true') {
+      dbQuery.isOpen = true;
+    }
+
+    if (query) {
+      dbQuery.$or = [
+        { name: { $regex: query, $options: 'i' } },
+        { cuisineType: { $regex: query, $options: 'i' } }
+      ];
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    const [restaurants, total] = await Promise.all([
+      User.find(dbQuery)
+        .select('-password -email -phone -addresses -profileImage')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(), // Use lean() for better performance
+      User.countDocuments(dbQuery)
+    ]);
+
+    console.log(`[Backend] GET /public/restaurants`);
+    console.log(`Query: ${JSON.stringify(req.query)}`);
+    console.log(`DB Query: ${JSON.stringify(dbQuery)}`);
+    console.log(`Found: ${restaurants.length} restaurants`);
+    if (restaurants.length > 0) {
+      console.log(`First User Role: ${restaurants[0].role}, Name: ${restaurants[0].name}`);
+    }
+
+    res.json({
+      restaurants,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum)
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -557,7 +770,7 @@ router.get("/public/restaurants", async (req, res) => {
 // SEARCH (Public - Food Items OR Restaurants)
 router.get("/public/search", async (req, res) => {
   try {
-    const { query, type, tags } = req.query;
+    const { query, type, tags, sortBy, dietary, minPrice, maxPrice } = req.query;
     let results = [];
     let dbQuery = {};
 
@@ -566,44 +779,93 @@ router.get("/public/search", async (req, res) => {
         dbQuery.$or = [
           { name: { $regex: query, $options: 'i' } },
           { description: { $regex: query, $options: 'i' } },
-          { category: { $regex: query, $options: 'i' } }
+          { category: { $regex: query, $options: 'i' } },
+          { tags: { $in: [new RegExp(query, 'i')] } }
         ];
       }
 
       if (tags) {
         const tagList = tags.split(',').map(tag => tag.trim());
-        dbQuery.$or = [
-          ...(dbQuery.$or || []),
+        const tagOrQuery = [
           { tags: { $in: tagList.map(t => new RegExp(t, 'i')) } },
           { category: { $in: tagList.map(t => new RegExp(t, 'i')) } }
         ];
-        if (!query && dbQuery.$or.length === 0) {
+
+        if (dbQuery.$or) {
+          dbQuery.$and = [
+            { $or: dbQuery.$or },
+            { $or: tagOrQuery }
+          ];
           delete dbQuery.$or;
+        } else {
+          dbQuery.$or = tagOrQuery;
         }
       }
 
-      if (!query && tags) {
-        const tagList = tags.split(',').map(tag => tag.trim());
-        dbQuery = {
+      // Dietary Filter
+      if (dietary === 'veg') {
+        // Assuming 'Veg' category or tag indicates veg. 
+        // Ideally we should have isVeg boolean on FoodItem. 
+        // Based on mock data, let's use category/tags logic or check if 'veg' is in name/description if schema doesn't have explicit isVeg
+        // Checking schema: It doesn't have isVeg. Let's rely on category or tags containing 'Veg'
+        const vegRegex = /veg/i;
+        const nonVegRegex = /non-veg/i; // simple check to exclude non-veg if we only want veg
+
+        // This is a naive implementation; ideal is adding isVeg to schema. 
+        // For now, let's enforce tags/category contains 'Veg'
+        dbQuery.$and = dbQuery.$and || [];
+        dbQuery.$and.push({
           $or: [
-            { tags: { $in: tagList.map(t => new RegExp(t, 'i')) } },
-            { category: { $in: tagList.map(t => new RegExp(t, 'i')) } },
-            { name: { $in: tagList.map(t => new RegExp(t, 'i')) } }
+            { category: { $regex: vegRegex } },
+            { tags: { $regex: vegRegex } },
+            { name: { $regex: vegRegex } }
           ]
-        };
+        });
+        // Optimization: Exclude explicit non-veg if mixed
       }
 
-      results = await FoodItem.find(dbQuery).populate('restaurantId', 'name profileImage');
-    } else {
-      if (query) {
-        dbQuery = {
-          $or: [
-            { name: { $regex: query, $options: 'i' } },
-            { cuisineType: { $regex: query, $options: 'i' } }
-          ],
-          role: 'user'
-        };
+      // Price Range Filter
+      if (minPrice || maxPrice) {
+        dbQuery.price = {};
+        if (minPrice) dbQuery.price.$gte = Number(minPrice);
+        if (maxPrice) dbQuery.price.$lte = Number(maxPrice);
       }
+
+      let sortOptions = {};
+      if (sortBy) {
+        if (sortBy === 'price_asc') sortOptions.price = 1;
+        else if (sortBy === 'price_desc') sortOptions.price = -1;
+        // 'rating' and 'deliveryTime' not on FoodItem schema yet, ignoring
+      }
+
+      results = await FoodItem.find(dbQuery)
+        .populate('restaurantId', 'name restaurantImage profileImage')
+        .sort(sortOptions);
+
+    } else {
+      // RESTAURANT SEARCH
+      dbQuery = { role: { $in: ['user', 'restaurant'] } };
+
+      if (query) {
+        dbQuery.$and = [
+          {
+            $or: [
+              { name: { $regex: query, $options: 'i' } },
+              { cuisineType: { $regex: query, $options: 'i' } }
+            ]
+          }
+        ];
+      }
+
+      // Dietary Filter for Restaurants (e.g. Pure Veg)
+      if (dietary === 'veg') {
+        // Naive check: cuisineType contains "Veg"
+        dbQuery.cuisineType = { $regex: /veg/i };
+      }
+
+      // Note: User model does not have price/rating for sorting yet.
+      // We return results sorted by creation for now, unless we mock it or add fields.
+
       results = await User.find(dbQuery).select('-password -email -phone -addresses');
     }
 

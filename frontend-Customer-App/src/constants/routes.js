@@ -29,6 +29,7 @@ export const ROUTES = {
   // Profile Stack
   PROFILE_SCREEN: 'ProfileScreen',
   EDIT_PROFILE: 'EditProfile',
+  FAVORITES: 'Favorites',
   SAVED_ADDRESSES: 'SavedAddresses',
   ADD_ADDRESS: 'AddAddress',
   ORDER_HISTORY: 'OrderHistory',

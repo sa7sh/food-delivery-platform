@@ -7,12 +7,13 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { ROUTES, ORDER_STATUS } from '../../../constants';
-import { useOrdersStore } from '../../../store';
+import { useOrdersStore, useCartStore } from '../../../store';
 import { useTheme } from '../../../hooks/useTheme';
 
 // Components
@@ -25,7 +26,16 @@ export default function OrdersListScreen() {
   const [selectedFilter, setSelectedFilter] = useState('all');
   const { colors, isDark } = useTheme();
 
-  useEffect(() => { loadOrders(); }, []);
+  useEffect(() => {
+    loadOrders();
+
+    // Poll for order updates every 30 seconds to keep list fresh (reduced from 15s for better performance)
+    const interval = setInterval(() => {
+      loadOrders();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const loadOrders = async () => { await fetchOrders(); };
 
@@ -33,6 +43,32 @@ export default function OrdersListScreen() {
     setRefreshing(true);
     await loadOrders();
     setRefreshing(false);
+  };
+
+  const { items: cartItems, setCart, restaurant: cartRestaurant } = useCartStore();
+
+  const handleReorder = (order) => {
+    const proceedWithReorder = () => {
+      setCart(order.items, {
+        id: order.restaurant.id || order.restaurant._id,
+        name: order.restaurant.name,
+        image: order.restaurant.image
+      });
+      navigation.navigate(ROUTES.CART_TAB);
+    };
+
+    if (cartItems.length > 0 && cartRestaurant?.id !== (order.restaurant.id || order.restaurant._id)) {
+      Alert.alert(
+        'Replace Cart?',
+        `Your cart contains items from ${cartRestaurant.name}. Do you want to discard them and add items from ${order.restaurant.name}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Yes, Replace', onPress: proceedWithReorder, style: 'destructive' }
+        ]
+      );
+    } else {
+      proceedWithReorder();
+    }
   };
 
   const getFilteredOrders = () => {
@@ -106,6 +142,7 @@ export default function OrdersListScreen() {
           <OrderCard
             order={item}
             onPress={() => navigation.navigate(ROUTES.ORDER_DETAIL, { orderId: item.id })}
+            onReorder={() => handleReorder(item)}
           />
         )}
         ListEmptyComponent={renderEmpty}
@@ -130,16 +167,33 @@ const styles = StyleSheet.create({
   },
   header: { paddingHorizontal: 20, paddingVertical: 16 },
   headerTitle: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
-  filterContainer: { flexDirection: 'row', paddingHorizontal: 20, paddingBottom: 16, gap: 8 },
+  filterContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    gap: 12
+  },
   filterTab: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: 12, // Taller tabs
+    borderRadius: 16, // More rounded
     alignItems: 'center',
     borderWidth: 1,
+    elevation: 2, // Subtle shadow for depth
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  filterText: { fontSize: 14, fontWeight: '700' },
-  listContent: { padding: 20, paddingBottom: 100 },
+  filterText: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5
+  },
+  listContent: {
+    padding: 24, // More breathing room
+    paddingBottom: 120
+  },
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, marginTop: 80 },
   emptyIconCircle: { width: 100, height: 100, borderRadius: 50, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },

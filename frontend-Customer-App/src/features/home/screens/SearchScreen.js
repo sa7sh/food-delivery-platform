@@ -24,6 +24,7 @@ import RestaurantCard from '../components/RestaurantCard';
 import FoodCard from '../components/FoodCard';
 import httpClient from '../../../services/api/httpClient';
 import { useTheme } from '../../../hooks/useTheme';
+import { useUserStore } from '../../../store/userStore';
 
 const { width } = Dimensions.get('window');
 
@@ -79,6 +80,7 @@ export default function SearchScreen() {
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
+  const { favorites, toggleFavorite } = useUserStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -100,15 +102,13 @@ export default function SearchScreen() {
   }, [route.params]);
 
   useEffect(() => {
-    if (searchQuery.trim() && !route.params?.tags) { // Only auto-search if not triggered by params initially to avoid double call or loop
+    if (searchQuery.trim() && !route.params?.tags) {
       const delaySearch = setTimeout(() => {
         handleSearch(searchQuery);
       }, 600);
       return () => clearTimeout(delaySearch);
-    } else if (searchQuery.trim() === '') {
-      // setSearchResults([]); // Optional: keep results or clear?
     }
-  }, [searchQuery]); // Removed activeFilter from deps for simplicity for now
+  }, [searchQuery]); // activeFilter handled in separate effect
 
   /* -------------------- LOGIC -------------------- */
   const handleSearch = async (query, type = 'restaurant', tags = null) => {
@@ -118,8 +118,13 @@ export default function SearchScreen() {
       if (type) params.type = type;
       if (tags && Array.isArray(tags)) params.tags = tags.join(',');
 
+      // Apply Active Filter
+      if (activeFilter === 'veg') params.dietary = 'veg';
+      if (activeFilter === 'rating') params.sortBy = 'rating'; // Backend will need to handle this eventually, currently ignored or basic
+      if (activeFilter === 'fast') params.sortBy = 'deliveryTime';
+
       const response = await httpClient.get('/public/search', { params });
-      setSearchResults(response.data);
+      setSearchResults(response);
     } catch (error) {
       console.error('Search failed:', error);
       setSearchResults([]);
@@ -127,6 +132,13 @@ export default function SearchScreen() {
       setIsSearching(false);
     }
   };
+
+  // Re-run search when activeFilter changes, if we have a query
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      handleSearch(searchQuery);
+    }
+  }, [activeFilter]);
 
   const handleClearSearch = () => {
     setSearchQuery('');
@@ -322,6 +334,8 @@ export default function SearchScreen() {
                           deliveryFee: '$2.00' // Mock
                         }}
                         onPress={() => { }}
+                        isFavorite={favorites.some(f => (f._id || f) === item._id)}
+                        onFavoritePress={() => toggleFavorite(item._id)}
                       />
                     );
                   })

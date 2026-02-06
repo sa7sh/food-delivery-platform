@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme';
 import Card from '../../../components/ui/Card';
 import Badge from '../../../components/ui/Badge';
 
-export default function RestaurantCard({ restaurant, onPress }) {
+export default function RestaurantCard({ restaurant, onPress, isFavorite, onFavoritePress }) {
   const {
     name,
+    restaurantImage: customRestaurantImage, // rename to avoid conflict
     profileImage,
     image,
     rating,
@@ -20,8 +22,8 @@ export default function RestaurantCard({ restaurant, onPress }) {
     isOpen = true,
   } = restaurant;
 
-  // Use profileImage from backend, fallback to image, or default
-  const restaurantImage = profileImage || image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800';
+  // Use restaurantImage from backend, fallback to image, or default
+  const displayImage = customRestaurantImage || image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800';
 
   // Handle cuisine as array or single string
   const cuisineArray = Array.isArray(cuisine) ? cuisine : (cuisineType ? [cuisineType] : ['Restaurant']);
@@ -31,7 +33,7 @@ export default function RestaurantCard({ restaurant, onPress }) {
       {/* Restaurant Image */}
       <View style={styles.imageContainer}>
         <Image
-          source={{ uri: restaurantImage }}
+          source={{ uri: displayImage }}
           style={styles.image}
           resizeMode="cover"
         />
@@ -45,6 +47,17 @@ export default function RestaurantCard({ restaurant, onPress }) {
             <Text style={styles.offerText}>🎉 {offers[0]}</Text>
           </View>
         )}
+        {/* Favorite Icon */}
+        <TouchableOpacity
+          style={styles.favoriteButton}
+          onPress={onFavoritePress}
+        >
+          <Ionicons
+            name={isFavorite ? "heart" : "heart-outline"}
+            size={22}
+            color={isFavorite ? "#E23744" : "#FFFFFF"}
+          />
+        </TouchableOpacity>
       </View>
 
       {/* Restaurant Info */}
@@ -179,4 +192,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.gray[500],
   },
+  favoriteButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 20,
+    padding: 6,
+    zIndex: 10,
+  }
 });

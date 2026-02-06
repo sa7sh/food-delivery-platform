@@ -12,6 +12,8 @@ import TermsScreen from '../features/profile/screens/TermsScreen.js';
 import PrivacyPolicyScreen from '../features/profile/screens/PrivacyPolicyScreen.js';
 import HelpSupportScreen from '../features/profile/screens/HelpSupportScreen.js';
 
+import FavoritesScreen from '../features/profile/screens/FavoritesScreen.js';
+
 const Stack = createNativeStackNavigator();
 
 import { useTheme } from '../hooks/useTheme';
@@ -29,6 +31,7 @@ export default function ProfileStack() {
     >
       <Stack.Screen name={ROUTES.PROFILE_SCREEN} component={ProfileScreen} />
       <Stack.Screen name={ROUTES.EDIT_PROFILE} component={EditProfileScreen} />
+      <Stack.Screen name={ROUTES.FAVORITES} component={FavoritesScreen} />
       <Stack.Screen
         name={ROUTES.SAVED_ADDRESSES}
         component={SavedAddressesScreen}

@@ -21,7 +21,7 @@ export const useCartStore = create((set, get) => ({
   // Calculate totals
   calculateTotals: () => {
     const { items, deliveryFee } = get();
-    
+
     const subtotal = items.reduce((sum, item) => {
       const itemTotal = item.price * item.quantity;
       const customizationsTotal = (item.selectedCustomizations || [])
@@ -56,9 +56,9 @@ export const useCartStore = create((set, get) => ({
 
     // Check if item already exists
     const existingItemIndex = items.findIndex(
-      (cartItem) => 
+      (cartItem) =>
         cartItem.id === item.id &&
-        JSON.stringify(cartItem.selectedCustomizations) === 
+        JSON.stringify(cartItem.selectedCustomizations) ===
         JSON.stringify(item.selectedCustomizations)
     );
 
@@ -135,14 +135,31 @@ export const useCartStore = create((set, get) => ({
   fetchCart: async () => {
     try {
       set({ isLoading: true, error: null });
-      
+
       // TODO: Replace with actual API call
       // const response = await cartService.getCart();
-      
+
       set({ isLoading: false });
     } catch (error) {
       set({ isLoading: false, error: error.message });
     }
+  },
+
+  // Set Cart (Re-order)
+  setCart: (newItems, restaurant) => {
+    // Generate cartItemIds if missing
+    const itemsWithIds = newItems.map(item => ({
+      ...item,
+      cartItemId: item.cartItemId || Date.now().toString() + Math.random().toString(36).substr(2, 9)
+    }));
+
+    set({
+      items: itemsWithIds,
+      restaurant: restaurant,
+      error: null,
+    });
+
+    get().calculateTotals();
   },
 
   // Clear error

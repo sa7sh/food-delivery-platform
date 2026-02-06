@@ -55,7 +55,10 @@ export const useRestaurantStore = create((set, get) => ({
       const { foodService } = await import('../services/api');
       const foods = await foodService.getFoodsByRestaurant(restaurantId);
 
-      console.log('Fetched foods for restaurant:', restaurantId, foods);
+      console.log('Fetched foods for restaurant:', restaurantId, 'Count:', foods.length);
+      if (foods.length > 0) {
+        console.log('First Item Image URL Length:', foods[0].imageUrl ? foods[0].imageUrl.length : 'undefined');
+      }
 
       // Group food items by category
       // For now, we'll create a simple "All Items" category

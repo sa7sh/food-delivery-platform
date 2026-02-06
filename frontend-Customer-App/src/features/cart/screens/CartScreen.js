@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ROUTES } from '../../../constants';
 import { useCartStore, useUserStore } from '../../../store';
 import { useTheme } from '../../../hooks/useTheme';
+import { orderService } from '../../../services/api';
 
 /**
  * SUB-COMPONENT: CartItem
@@ -78,6 +79,60 @@ export default function CartScreen() {
       ]);
     } else if (item) {
       updateItemQuantity(id, item.quantity - 1);
+    }
+  };
+
+  const [isPlacingOrder, setIsPlacingOrder] = React.useState(false);
+
+  const handleCheckout = async () => {
+    if (!selectedAddress) {
+      Alert.alert('Address Required', 'Please select a delivery address.');
+      return;
+    }
+
+    try {
+      setIsPlacingOrder(true);
+      const orderData = {
+        restaurantId: restaurant.id,
+        items: items.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          foodId: item.id,
+          image: item.image || item.imageUrl || 'https://via.placeholder.com/100'
+        })),
+        totalAmount: total,
+        deliveryAddress: `${selectedAddress.street}, ${selectedAddress.city}`,
+        paymentMethod: 'COD' // Defaulting to COD for now
+      };
+
+      // orderData is already declared above at line 94
+
+      const response = await orderService.placeOrder(orderData);
+
+      setIsPlacingOrder(false);
+      Alert.alert('Success', 'Order placed successfully!', [
+        {
+          text: 'OK',
+          onPress: () => {
+            clearCart();
+            navigation.navigate(ROUTES.HOME);
+          }
+        }
+      ]);
+    } catch (error) {
+      console.error("CartScreen Checkout Error:", error);
+      if (error.response) {
+        console.error("Error Response Data:", error.response.data);
+        console.error("Error Status:", error.response.status);
+      } else if (error.request) {
+        console.error("Error Request:", error.request);
+      } else {
+        console.error("Error Message:", error.message);
+      }
+
+      setIsPlacingOrder(false);
+      Alert.alert('Error', error.response?.data?.message || error.message || 'Failed to place order. Please try again.');
     }
   };
 
@@ -152,7 +207,10 @@ export default function CartScreen() {
         {/* Delivery Address Card */}
         <Text style={[styles.sectionLabel, { color: colors.textSub }]}>Delivery Location</Text>
         <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: isDark ? '#000' : '#0F172A' }]}>
-          <TouchableOpacity style={styles.addressContainer} onPress={() => { }}>
+          <TouchableOpacity
+            style={styles.addressContainer}
+            onPress={() => navigation.navigate(ROUTES.PROFILE, { screen: ROUTES.SAVED_ADDRESSES })}
+          >
             <View style={[styles.iconCircle, { backgroundColor: colors.surfaceHighlight }]}><Ionicons name="location" size={18} color={colors.icon} /></View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={[styles.addressLabel, { color: colors.text }]}>{selectedAddress ? 'Home' : 'Add Address'}</Text>
@@ -179,11 +237,12 @@ export default function CartScreen() {
             <Text style={[styles.totalPriceValue, { color: colors.text }]}>₹{total.toFixed(2)}</Text>
           </View>
           <TouchableOpacity
-            style={[styles.checkoutButton, { backgroundColor: colors.primary[500] }]}
-            onPress={() => Alert.alert('Processing', 'Connecting to gateway...')}
+            style={[styles.checkoutButton, { backgroundColor: colors.primary[500], opacity: isPlacingOrder ? 0.7 : 1 }]}
+            onPress={handleCheckout}
+            disabled={isPlacingOrder}
           >
-            <Text style={styles.checkoutText}>Place Order</Text>
-            <Ionicons name="arrow-forward" size={20} color="#fff" />
+            <Text style={styles.checkoutText}>{isPlacingOrder ? 'Placing Order...' : 'Place Order'}</Text>
+            {!isPlacingOrder && <Ionicons name="arrow-forward" size={20} color="#fff" />}
           </TouchableOpacity>
         </View>
       </View>

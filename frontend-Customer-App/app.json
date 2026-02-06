@@ -19,7 +19,8 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.yourcompany.fooddelivery"
+      "bundleIdentifier": "com.yourcompany.fooddelivery",
+      "jsEngine": "hermes"
     },
     "android": {
       "adaptiveIcon": {
@@ -27,7 +28,8 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.yourcompany.fooddelivery",
-      "versionCode": 2
+      "versionCode": 2,
+      "jsEngine": "hermes"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -37,6 +39,17 @@
       "eas": {
         "projectId": "e5f1e098-748e-441b-9884-2f808151ccf7"
       }
-    }
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ]
+    ]
   }
 }

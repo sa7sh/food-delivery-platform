@@ -139,6 +139,18 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  // Handle Session Expiry (called by interceptors)
+  handleSessionExpiry: async () => {
+    console.log('Handling session expiry...');
+    await secureStorage.clearAll();
+    set({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      error: 'Session expired. Please login again.',
+    });
+  },
+
   // Initialize auth (check if user is already logged in)
   initializeAuth: async () => {
     try {

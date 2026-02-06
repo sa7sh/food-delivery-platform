@@ -39,8 +39,12 @@ httpClient.interceptors.response.use(
 
       if (status === 401) {
         // Unauthorized - Clear token and redirect to login
-        await secureStorage.clearAll();
-        // You can emit an event here to trigger navigation to login
+        // Import store dynamically to avoid circular dependency issues if possible, 
+        // or rely on the previous secureStorage.clearAll() which is good but doesn't update UI state immediately.
+        // Better:
+        const { useAuthStore } = require('../../store/authStore');
+        await useAuthStore.getState().handleSessionExpiry();
+
         return Promise.reject({
           message: MESSAGES.ERROR.UNAUTHORIZED,
           status,

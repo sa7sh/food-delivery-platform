@@ -4,16 +4,15 @@ import { API_ENDPOINTS } from '../../../constants';
 export const orderService = {
   // Place order
   async placeOrder(orderData) {
-    // orderData: { cartId, addressId, paymentMethod }
-    // TODO: Replace with actual API call
+    console.log("[OrderService] placeOrder called with:", JSON.stringify(orderData, null, 2));
+    console.log("[OrderService] Sending URL:", API_ENDPOINTS.ORDERS);
     return httpClient.post(API_ENDPOINTS.ORDERS, orderData);
   },
 
   // Get orders
   async getOrders(params) {
     // params: { page, limit, status }
-    // TODO: Replace with actual API call
-    return httpClient.get(API_ENDPOINTS.ORDERS, { params });
+    return httpClient.get(`${API_ENDPOINTS.ORDERS}/my-orders`, { params });
   },
 
   // Get order detail
@@ -27,5 +26,18 @@ export const orderService = {
   async cancelOrder(orderId) {
     // TODO: Replace with actual API call
     return httpClient.post(`${API_ENDPOINTS.ORDERS}/${orderId}/cancel`);
+  },
+
+  // Submit Review
+  async submitReview(reviewData) {
+    try {
+      console.log('[OrderService] submitReview called with:', JSON.stringify(reviewData, null, 2));
+      const response = await httpClient.post('/reviews', reviewData);
+      console.log('[OrderService] submitReview response:', response);
+      return response;
+    } catch (error) {
+      console.error('[OrderService] submitReview error:', error);
+      throw error;
+    }
   },
 };

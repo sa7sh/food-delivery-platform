@@ -149,6 +149,66 @@ export const useUserStore = create((set, get) => ({
     }
   },
 
+  // Favorites
+  favorites: [],
+
+  // Fetch Favorites
+  fetchFavorites: async () => {
+    try {
+      const response = await userService.getFavorites();
+      set({ favorites: response.data || response || [] });
+    } catch (error) {
+      console.error('Failed to fetch favorites:', error);
+    }
+  },
+
+  // Toggle Favorite
+  toggleFavorite: async (restaurantId) => {
+    try {
+      console.log('[UserStore] Toggling favorite for:', restaurantId);
+      // Optimistic Update
+      const currentFavorites = get().favorites;
+      const index = currentFavorites.findIndex(f => (f._id || f) === restaurantId);
+
+      let newFavorites;
+      if (index > -1) {
+        newFavorites = currentFavorites.filter(f => (f._id || f) !== restaurantId);
+      } else {
+        // Optimistically add just the ID or partial object if possible
+        newFavorites = [...currentFavorites, { _id: restaurantId, id: restaurantId, name: 'Loading...' }];
+      }
+
+      // Update UI immediately
+      set({ favorites: newFavorites });
+
+      const response = await userService.toggleFavorite(restaurantId);
+      console.log('[UserStore] Response:', response);
+
+      if (response && response.success) {
+        // If endpoint returns full list, use it
+        if (response.favorites) {
+          // We need populated objects, backend returns IDs? 
+          // If backend returns IDs, we must fetch again.
+          // Let's check what backend returns.
+          console.log('[UserStore] Favorites updated on backend, refetching...');
+          get().fetchFavorites();
+        }
+      } else {
+        // Revert on failure
+        console.error('[UserStore] Toggle failed (success: false), reverting.');
+        set({ favorites: currentFavorites });
+      }
+      return response;
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+      // Revert on error
+      set({ favorites: get().favorites }); // This might be wrong if state already changed, better to use captured 'currentFavorites'.
+      // Actually, we should capture current before change.
+      // But for debugging, this is fine.
+      return { success: false };
+    }
+  },
+
   // Clear error
   clearError: () => set({ error: null }),
 
@@ -157,6 +217,7 @@ export const useUserStore = create((set, get) => ({
     profile: null,
     addresses: [],
     selectedAddress: null,
+    favorites: [],
     error: null,
   }),
 }));

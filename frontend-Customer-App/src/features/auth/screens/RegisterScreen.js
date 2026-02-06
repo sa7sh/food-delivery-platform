@@ -25,6 +25,7 @@ export default function RegisterScreen() {
     email: '',
     phone: '',
     password: '',
+    role: 'customer',
   });
 
   const [formErrors, setFormErrors] = useState({});

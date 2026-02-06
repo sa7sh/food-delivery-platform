@@ -46,11 +46,21 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    restaurantImage: {
+      type: String,
+      default: null,
+    },
     role: {
       type: String,
       default: "user",
-      enum: ["user", "admin"],
+      enum: ["user", "admin", "customer", "restaurant"],
     },
+    favorites: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User", // References other Users (Restaurants)
+      }
+    ],
   },
   { timestamps: true }
 );

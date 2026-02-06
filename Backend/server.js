@@ -8,14 +8,51 @@ import cookieParser from "cookie-parser";
 // Routes
 import apiRoutes from "./routes/apiRoutes.js";
 import foodRoutes from "./routes/foodRoutes.js";
+import analyticsRoutes from "./routes/analyticsRoutes.js";
 
 // Load env variables
 dotenv.config();
 
-// ===============================
 // 1️⃣ Create Express App FIRST
 // ===============================
+import { createServer } from "http";
+import { Server } from "socket.io";
+
 const app = express();
+const httpServer = createServer(app);
+
+// Socket.io Setup
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*", // allow everyone for now
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    credentials: true
+  }
+});
+
+// Store io instance in app to use in routes
+app.set("socketio", io);
+
+// Socket Connection Handler
+io.on("connection", (socket) => {
+  console.log(`Socket Connected: ${socket.id}`);
+
+  // Join Restaurant Room
+  socket.on("joinRestaurantRoom", (restaurantId) => {
+    socket.join(`restaurant_${restaurantId}`);
+    console.log(`Socket ${socket.id} joined restaurant_${restaurantId}`);
+  });
+
+  // Join Customer Room
+  socket.on("joinCustomerRoom", (userId) => {
+    socket.join(`customer_${userId}`);
+    console.log(`Socket ${socket.id} joined customer_${userId}`);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Socket Disconnected");
+  });
+});
 
 console.log("Starting server...");
 
@@ -32,6 +69,12 @@ app.use(
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
+});
 
 // ===============================
 // 3️⃣ Rate Limiter (Auth Only)
@@ -58,6 +101,17 @@ app.use("/api/auth", authLimiter, apiRoutes);
 
 // Food routes (used by ALL apps)
 app.use("/api/foods", foodRoutes);
+
+// Order routes
+import orderRoutes from "./routes/orderRoutes.js";
+app.use("/api/orders", orderRoutes);
+
+// Review routes
+import reviewRoutes from "./routes/reviewRoutes.js";
+app.use("/api/reviews", reviewRoutes);
+
+// Analytics routes
+app.use("/api/analytics", analyticsRoutes);
 
 // ===============================
 // 5️⃣ Test Routes
@@ -90,12 +144,11 @@ mongoose
   .then(() => console.log("MongoDB Connected"))
   .catch((err) => console.error("MongoDB Error:", err));
 
-// ===============================
 // 8️⃣ Start Server
 // ===============================
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, "0.0.0.0", () => {
+httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Backend accessible at http://localhost:${PORT}`);
 });

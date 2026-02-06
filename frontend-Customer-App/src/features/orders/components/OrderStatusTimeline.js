@@ -6,6 +6,26 @@ import { useTheme } from '../../../hooks/useTheme';
 export default function OrderStatusTimeline({ currentStatus }) {
   const { colors, isDark } = useTheme();
 
+  // Defensive check
+  const status = currentStatus || 'UNKNOWN';
+
+  const getStepStatus = (stepStatus) => {
+    const steps = [
+      ORDER_STATUS.PLACED,
+      ORDER_STATUS.CONFIRMED,
+      ORDER_STATUS.PREPARING,
+      ORDER_STATUS.OUT_FOR_DELIVERY,
+      ORDER_STATUS.DELIVERED,
+    ];
+
+    const currentIndex = steps.indexOf(status);
+    const stepIndex = steps.indexOf(stepStatus);
+
+    if (status === ORDER_STATUS.CANCELLED) return 'cancelled';
+    if (currentIndex >= stepIndex) return 'completed';
+    return 'pending';
+  };
+
   const statuses = [
     { key: ORDER_STATUS.PLACED, label: 'Order Placed', icon: '📝' },
     { key: ORDER_STATUS.CONFIRMED, label: 'Confirmed', icon: '✅' },
