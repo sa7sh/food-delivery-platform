@@ -86,6 +86,11 @@ import upload from "../middleware/uploadMiddleware.js"; // Import Middleware
 
 router.post("/", protect, upload.single('image'), async (req, res) => {
   try {
+    // Verify user is a restaurant
+    if (!['restaurant', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ message: "Access denied. Restaurant account required." });
+    }
+
     const { name, description, price, category, isAvailable } = req.body;
     let imageUrl = req.body.imageUrl; // Callback for old logic or if no file
 
@@ -126,6 +131,11 @@ router.post("/", protect, upload.single('image'), async (req, res) => {
 /* Restaurant → GET MY FOODS */
 router.get("/my-foods", protect, async (req, res) => {
   try {
+    // Verify user is a restaurant
+    if (!['restaurant', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ message: "Access denied. Restaurant account required." });
+    }
+
     const foods = await FoodItem.find({ restaurantId: req.user._id }).sort({ createdAt: -1 });
     res.json(foods);
   } catch (error) {
@@ -136,6 +146,11 @@ router.get("/my-foods", protect, async (req, res) => {
 /* Restaurant → UPDATE FOOD */
 router.put("/:id", protect, upload.single('image'), async (req, res) => {
   try {
+    // Verify user is a restaurant
+    if (!['restaurant', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ message: "Access denied. Restaurant account required." });
+    }
+
     const { id } = req.params;
     const { name, description, price, category, isAvailable } = req.body;
     let imageUrl = req.body.imageUrl;
@@ -186,6 +201,11 @@ router.put("/:id", protect, upload.single('image'), async (req, res) => {
 /* Restaurant → DELETE FOOD */
 router.delete("/:id", protect, async (req, res) => {
   try {
+    // Verify user is a restaurant
+    if (!['restaurant', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ message: "Access denied. Restaurant account required." });
+    }
+
     const { id } = req.params;
     const deletedItem = await FoodItem.findOneAndDelete({ _id: id, restaurantId: req.user._id });
 
@@ -202,6 +222,11 @@ router.delete("/:id", protect, async (req, res) => {
 /* Restaurant → TOGGLE AVAILABILITY */
 router.patch("/:id/availability", protect, async (req, res) => {
   try {
+    // Verify user is a restaurant
+    if (!['restaurant', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ message: "Access denied. Restaurant account required." });
+    }
+
     const { id } = req.params;
     const { isAvailable } = req.body;
 

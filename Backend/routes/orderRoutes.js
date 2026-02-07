@@ -188,28 +188,39 @@ router.get("/my-orders", protect, async (req, res) => {
   }
 });
 
+
 // Get Restaurant Orders (Restaurant App)
-router.get("/restaurant/orders", protect, async (req, res) => {
+router.get("/restaurant", protect, async (req, res) => {
   try {
+    console.log('[OrderRoutes] GET /restaurant hit by user:', req.user._id, 'role:', req.user.role);
+
     // Verify user is a restaurant
     if (!['user', 'restaurant'].includes(req.user.role)) {
+      console.log('[OrderRoutes] Access denied - user role:', req.user.role);
       return res.status(403).json({ message: "Access denied. Restaurant account required." });
     }
 
     // The logged-in user IS the restaurant
     const { status } = req.query;
-    let query = { restaurantId: req.user._id };
+    let query = {
+      restaurantId: req.user._id,
+      isDeletedByRestaurant: { $ne: true }
+    };
 
     if (status) {
       query.status = status;
     }
 
+    console.log('[OrderRoutes] Fetching orders with query:', JSON.stringify(query));
     const orders = await Order.find(query).sort({ createdAt: -1 });
+    console.log('[OrderRoutes] Found', orders.length, 'orders');
     res.json(orders);
   } catch (error) {
+    console.error('[OrderRoutes] Error fetching restaurant orders:', error);
     res.status(500).json({ message: error.message });
   }
 });
+
 
 // Get Order Details
 router.get("/:id", protect, async (req, res) => {

@@ -22,8 +22,8 @@ export default function RestaurantCard({ restaurant, onPress, isFavorite, onFavo
     isOpen = true,
   } = restaurant;
 
-  // Use restaurantImage from backend, fallback to image, or default
-  const displayImage = customRestaurantImage || image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800';
+  // Use restaurantImage from backend, fallback to profileImage, then image, or default
+  const displayImage = customRestaurantImage || profileImage || image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800';
 
   // Handle cuisine as array or single string
   const cuisineArray = Array.isArray(cuisine) ? cuisine : (cuisineType ? [cuisineType] : ['Restaurant']);

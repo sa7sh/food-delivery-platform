@@ -762,7 +762,7 @@ router.get("/public/restaurants", async (req, res) => {
 
     const [restaurants, total] = await Promise.all([
       User.find(dbQuery)
-        .select('-password -email -phone -addresses -profileImage')
+        .select('-password -email -phone -addresses') // profileImage is allowed now as fallback
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
