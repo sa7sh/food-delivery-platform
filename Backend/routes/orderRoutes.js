@@ -168,7 +168,8 @@ router.get("/my-orders", protect, async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
-        .populate("restaurantId", "name profileImage")
+        .populate("restaurantId", "name profileImage restaurantImage")
+        .populate({ path: "items.foodId", select: "image name" })
         .lean(),
       Order.countDocuments({ customerId: req.user._id })
     ]);
@@ -213,7 +214,9 @@ router.get("/restaurant/orders", protect, async (req, res) => {
 // Get Order Details
 router.get("/:id", protect, async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate("restaurantId", "name profileImage");
+    const order = await Order.findById(req.params.id)
+      .populate("restaurantId", "name profileImage restaurantImage")
+      .populate({ path: "items.foodId", select: "image name" });
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }

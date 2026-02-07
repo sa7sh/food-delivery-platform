@@ -10,7 +10,30 @@ export const userService = {
 
   // Update profile
   async updateProfile(userData) {
-    // userData: { name, email, phone, avatar }
+    const { profileImage } = userData;
+    // Check if we need to upload an image (is local URI?)
+    const isImageUpload = profileImage && !profileImage.startsWith('http');
+
+    if (isImageUpload) {
+      const formData = new FormData();
+      Object.keys(userData).forEach((key) => {
+        if (key === 'profileImage') {
+          const uri = userData[key];
+          const filename = uri.split('/').pop();
+          const match = /\.(\w+)$/.exec(filename);
+          const type = match ? `image/${match[1]}` : 'image/jpeg';
+          formData.append('profileImage', { uri, name: filename, type });
+        } else if (userData[key] !== null && userData[key] !== undefined) {
+          formData.append(key, userData[key]);
+        }
+      });
+
+      return httpClient.put(API_ENDPOINTS.PROFILE, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    }
+
+    // Standard JSON update
     return httpClient.put(API_ENDPOINTS.PROFILE, userData);
   },
 

@@ -82,13 +82,21 @@ router.get("/restaurant/:restaurantId", async (req, res) => {
  */
 
 /* Restaurant → ADD FOOD */
-router.post("/", protect, async (req, res) => {
+import upload from "../middleware/uploadMiddleware.js"; // Import Middleware
+
+router.post("/", protect, upload.single('image'), async (req, res) => {
   try {
-    const { name, description, price, category, imageUrl, isAvailable } = req.body;
+    const { name, description, price, category, isAvailable } = req.body;
+    let imageUrl = req.body.imageUrl; // Callback for old logic or if no file
+
+    if (req.file) {
+      imageUrl = req.file.path; // Cloudinary URL
+    }
 
     if (!name || !price || !category) {
       return res.status(400).json({ message: "Name, Price, and Category are required" });
     }
+    // ... validation ...
     if (name.length > 100) return res.status(400).json({ message: "Name must be under 100 characters" });
     if (description && description.length > 500) return res.status(400).json({ message: "Description must be under 500 characters" });
     if (category.length > 50) return res.status(400).json({ message: "Category must be under 50 characters" });
@@ -104,7 +112,6 @@ router.post("/", protect, async (req, res) => {
       description,
       price,
       category,
-      imageUrl,
       imageUrl,
       isAvailable: isAvailable !== undefined ? isAvailable : true,
       isVeg: req.body.isVeg !== undefined ? req.body.isVeg : true,
@@ -127,10 +134,15 @@ router.get("/my-foods", protect, async (req, res) => {
 });
 
 /* Restaurant → UPDATE FOOD */
-router.put("/:id", protect, async (req, res) => {
+router.put("/:id", protect, upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, category, imageUrl, isAvailable } = req.body;
+    const { name, description, price, category, isAvailable } = req.body;
+    let imageUrl = req.body.imageUrl;
+
+    if (req.file) {
+      imageUrl = req.file.path; // Cloudinary URL
+    }
 
     if (name && name.length > 100) return res.status(400).json({ message: "Name must be under 100 characters" });
     if (description && description.length > 500) return res.status(400).json({ message: "Description must be under 500 characters" });
@@ -146,17 +158,23 @@ router.put("/:id", protect, async (req, res) => {
       return res.status(404).json({ message: "Food item not found or unauthorized" });
     }
 
+    const updateData = {
+      name,
+      description,
+      price,
+      category,
+      isAvailable,
+      isVeg: req.body.isVeg,
+    };
+
+    // Only update image if a new one is provided or explicitly passed
+    if (imageUrl) {
+      updateData.imageUrl = imageUrl;
+    }
+
     const updatedItem = await FoodItem.findByIdAndUpdate(
       id,
-      {
-        name,
-        description,
-        price,
-        category,
-        imageUrl,
-        isAvailable,
-        isVeg: req.body.isVeg,
-      },
+      updateData,
       { new: true }
     );
     res.json(updatedItem);

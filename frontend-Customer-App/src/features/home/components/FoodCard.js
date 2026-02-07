@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'; // Removed Image from RN
+import { Image } from 'expo-image'; // Added Image from expo-image
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,6 +22,9 @@ export default function FoodCard({ food, onPress }) {
   const restaurantName = restaurantId?.name || 'Restaurant';
   const cuisineType = restaurantId?.cuisineType || type;
 
+  // Blurhash for placeholder
+  const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -31,8 +35,10 @@ export default function FoodCard({ food, onPress }) {
       <View style={styles.imageContainer}>
         <Image
           source={{ uri: image }}
+          placeholder={blurhash}
+          contentFit="cover"
+          transition={1000}
           style={styles.image}
-          resizeMode="cover"
         />
         {/* Gradient Overlay */}
         <LinearGradient

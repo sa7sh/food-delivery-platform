@@ -34,7 +34,7 @@ export const useOrdersStore = create((set, get) => ({
         restaurant: o.restaurantId ? {
           id: o.restaurantId._id,
           name: o.restaurantId.name,
-          image: o.restaurantId.profileImage || 'https://via.placeholder.com/100'
+          image: o.restaurantId.restaurantImage || o.restaurantId.profileImage || 'https://via.placeholder.com/100'
         } : { name: 'Unknown Restaurant', image: 'https://via.placeholder.com/100' }
       }));
 
@@ -66,7 +66,7 @@ export const useOrdersStore = create((set, get) => ({
         restaurant: rawOrder.restaurantId ? {
           id: rawOrder.restaurantId._id,
           name: rawOrder.restaurantId.name,
-          image: rawOrder.restaurantId.profileImage || 'https://via.placeholder.com/100'
+          image: rawOrder.restaurantId.restaurantImage || rawOrder.restaurantId.profileImage || 'https://via.placeholder.com/100'
         } : { name: 'Unknown Restaurant', image: 'https://via.placeholder.com/100' }
       };
 

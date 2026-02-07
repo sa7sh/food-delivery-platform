@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { ORDER_STATUS } from '../../../constants';
 import { useTheme } from '../../../hooks/useTheme';
@@ -72,16 +73,37 @@ export default function OrderCard({ order, onPress, onReorder }) {
     >
       {/* Header: Image + Name + Date */}
       <View style={styles.header}>
-        <View style={[styles.imageContainer, { backgroundColor: colors.surfaceHighlight }]}>
-          {imageUrl && !imageError ? (
-            <Image
-              source={{ uri: imageUrl }}
-              style={styles.restaurantImage}
-              resizeMode="cover"
-              onError={() => setImageError(true)}
-            />
+        <View style={styles.imageContainer}>
+          {(items?.[0]?.foodId?.image || items?.[0]?.image) ? (
+            <>
+              <Image
+                source={{ uri: items[0].foodId?.image || items[0].image }}
+                placeholder="L6PZfSi_.AyE_3t7t7R**0o#DgR4"
+                contentFit="cover"
+                transition={1000}
+                style={styles.foodImage}
+              />
+              {items.length > 1 && (
+                <View style={styles.countBadge}>
+                  <Text style={styles.countText}>+{items.length - 1}</Text>
+                </View>
+              )}
+            </>
           ) : (
-            <Ionicons name="restaurant" size={24} color={colors.primary[500]} />
+            imageUrl && !imageError ? (
+              <Image
+                source={{ uri: imageUrl }}
+                placeholder="L6PZfSi_.AyE_3t7t7R**0o#DgR4"
+                contentFit="cover"
+                transition={1000}
+                style={styles.foodImage}
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <View style={[styles.placeholderContainer, { backgroundColor: colors.surfaceHighlight }]}>
+                <Ionicons name="restaurant" size={24} color={colors.primary[500]} />
+              </View>
+            )
           )}
         </View>
 
@@ -150,16 +172,43 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   imageContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
+    width: 60, // Slight increase for better visibility
+    height: 60,
+    borderRadius: 12,
+    position: 'relative',
+    // Removed background color here to let images handle it or placeholder
   },
-  restaurantImage: {
+  foodImage: {
     width: '100%',
     height: '100%',
+    borderRadius: 12,
+  },
+  placeholderContainer: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  countBadge: {
+    position: 'absolute',
+    bottom: -6,
+    right: -6,
+    backgroundColor: '#1E1E2E', // Dark background for contrast
+    borderWidth: 2,
+    borderColor: '#2D2D44',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    minWidth: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  countText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
   },
   headerInfo: {
     flex: 1,

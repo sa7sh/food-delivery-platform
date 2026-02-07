@@ -488,9 +488,26 @@ router.get("/restaurant/profile", protect, async (req, res) => {
 });
 
 // Update Restaurant Profile
-router.put("/restaurant/profile", protect, async (req, res) => {
+// Update Restaurant Profile
+import upload from "../middleware/uploadMiddleware.js"; // Import Middleware
+
+router.put("/restaurant/profile", protect, upload.fields([
+  { name: 'profileImage', maxCount: 1 },
+  { name: 'restaurantImage', maxCount: 1 }
+]), async (req, res) => {
   try {
-    const { name, phone, address, cuisineType, isOpen, profileImage, restaurantImage } = req.body;
+    const { name, phone, address, cuisineType, isOpen } = req.body;
+    let { profileImage, restaurantImage } = req.body; // Logic for existing/fallback string
+
+    // Handle File Uploads
+    if (req.files) {
+      if (req.files.profileImage) {
+        profileImage = req.files.profileImage[0].path;
+      }
+      if (req.files.restaurantImage) {
+        restaurantImage = req.files.restaurantImage[0].path;
+      }
+    }
 
     try {
       const logMsg = `[${new Date().toISOString()}] PUT /restaurant/profile HIT\nUser: ${req.user._id}\nBody: ${JSON.stringify(req.body)}\nisOpen: ${isOpen} (${typeof isOpen})\n\n`;
@@ -607,14 +624,22 @@ router.get("/user/profile", protect, async (req, res) => {
 });
 
 // Update User Profile
-router.put("/user/profile", protect, async (req, res) => {
+// Update User Profile
+router.put("/user/profile", protect, upload.single('profileImage'), async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
 
     if (req.body.name && req.body.name.length > 100) return res.status(400).json({ message: "Name must be under 100 characters" });
     if (req.body.email && req.body.email.length > 254) return res.status(400).json({ message: "Email must be under 254 characters" });
     if (req.body.phone && req.body.phone.length > 20) return res.status(400).json({ message: "Phone must be under 20 characters" });
-    if (req.body.profileImage && req.body.profileImage.length > 1048576) return res.status(400).json({ message: "Profile image URI is too long" });
+
+    // Check if new image uploaded
+    if (req.file) {
+      req.body.profileImage = req.file.path;
+    } else if (req.body.profileImage && req.body.profileImage.length > 1048576) {
+      // Allow keeping existing string URL, but check length if it's base64 (though we want to discourage base64)
+      return res.status(400).json({ message: "Profile image URI is too long" });
+    }
 
     if ([req.body.name, req.body.email, req.body.phone].some(field => field && /[<>]/.test(field))) {
       return res.status(400).json({ message: "Invalid characters detected (HTML tags are not allowed)" });

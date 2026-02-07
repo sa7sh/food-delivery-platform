@@ -76,6 +76,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Cloudinary is used now, no need for static uploads serving
+
+
 // ===============================
 // 3️⃣ Rate Limiter (Auth Only)
 // ===============================

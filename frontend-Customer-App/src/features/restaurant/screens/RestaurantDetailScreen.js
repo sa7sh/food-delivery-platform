@@ -9,6 +9,7 @@ import {
   Dimensions,
   Platform,
   Animated,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +26,7 @@ export default function RestaurantDetailScreen({ route, navigation }) {
   const { colors, isDark } = useTheme();
   const [selectedCategory, setSelectedCategory] = useState('Popular');
   const [activeFilter, setActiveFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [ratingStats, setRatingStats] = useState({ averageRating: 0, totalReviews: 0 });
 
   // Get cart state
@@ -92,10 +94,19 @@ export default function RestaurantDetailScreen({ route, navigation }) {
   const categoryItems = menu.find(cat => cat.name === selectedCategory)?.items || [];
 
   const filteredItems = categoryItems.filter(item => {
+    // 1. Search Filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      if (!item.name.toLowerCase().includes(query) && !item.description?.toLowerCase().includes(query)) {
+        return false;
+      }
+    }
+
+    // 2. Tag Filters
     if (activeFilter === 'veg') return item.isVeg;
     if (activeFilter === 'non-veg') return !item.isVeg;
-    if (activeFilter === 'rated') return (item.rating || 4.2) >= 4.0; // Mock rating for now
-    if (activeFilter === 'bestseller') return (item.price > 200); // Mock rule: pricey = bestseller
+    if (activeFilter === 'rated') return (item.rating || 4.2) >= 4.0;
+    if (activeFilter === 'bestseller') return (item.price > 200);
     return true;
   });
 
@@ -125,202 +136,210 @@ export default function RestaurantDetailScreen({ route, navigation }) {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style="light" />
 
-      {/* Hero Image Section */}
-      <View style={styles.headerImageContainer}>
-        <Image source={{ uri: restaurantData.image }} style={styles.headerImage} />
-        <LinearGradient
-          colors={['rgba(0,0,0,0.4)', 'transparent', isDark ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0.05)']}
-          style={StyleSheet.absoluteFill}
-        />
+      {!restaurantData.isOpen && (
+        <View style={styles.closedBanner}>
+          <Text style={styles.closedBannerText}>RESTAURANT CLOSED</Text>
+        </View>
+      )}
 
-        <SafeAreaView style={styles.headerButtons}>
-          <TouchableOpacity
-            style={[styles.roundButton, { backgroundColor: isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.9)' }]}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="chevron-back" size={24} color={isDark ? '#fff' : colors.text} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.roundButton, { backgroundColor: isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.9)' }]}>
-            <Ionicons name="share-outline" size={22} color={isDark ? '#fff' : colors.text} />
-          </TouchableOpacity>
-        </SafeAreaView>
-
-        {!restaurantData.isOpen && (
-          <View style={styles.closedBanner}>
-            <Text style={styles.closedBannerText}>RESTAURANT CLOSED</Text>
-            <Text style={styles.closedBannerSub}>Not accepting orders right now</Text>
+      {/* Scroll Content Layer */}
+      <View style={styles.scrollLayer}>
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          stickyHeaderIndices={[3]}
+        >
+          {/* Header Image - Now inside ScrollView */}
+          <View style={styles.headerImageWrapper}>
+            <Image
+              source={{ uri: restaurantData.image }}
+              style={styles.headerImage}
+            />
+            <LinearGradient
+              colors={['rgba(0,0,0,0.2)', 'transparent', 'rgba(0,0,0,0.6)']}
+              style={StyleSheet.absoluteFill}
+            />
           </View>
-        )}
-      </View>
 
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[1]} // Makes categories stick when scrolling
-      >
-        {/* Restaurant Info Card */}
-        <View style={[styles.infoSection, { backgroundColor: colors.surface, shadowColor: isDark ? '#000' : '#000' }]}>
-          <View style={[styles.indicator, { backgroundColor: colors.border }]} />
-          <View style={styles.titleRow}>
-            <Text style={[styles.restaurantName, { color: colors.text }]}>{restaurantData.name}</Text>
-            <TouchableOpacity onPress={() => toggleFavorite(restaurantId)}>
-              <Ionicons
-                name={favorites.some(f => (f._id || f) === restaurantId) ? "heart" : "heart-outline"}
-                size={28}
-                color={favorites.some(f => (f._id || f) === restaurantId) ? "#E23744" : colors.primary[500]}
+          {/* Restaurant Info Card */}
+          <View style={[styles.infoSection, { backgroundColor: colors.background }]}>
+            <View style={styles.infoHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.restaurantName, { color: colors.text }]}>{restaurantData.name}</Text>
+                <Text style={[styles.metaText, { color: colors.textSub }]}>{restaurantData.tags?.join(' • ')}</Text>
+              </View>
+              <View style={styles.ratingBox}>
+                <Text style={styles.ratingBoxText}>{restaurantData.rating}</Text>
+                <Ionicons name="star" size={12} color="#fff" style={{ marginLeft: 2 }} />
+              </View>
+            </View>
+
+            {/* Stats Row */}
+            <View style={styles.modernStatsRow}>
+              <View style={[styles.modernStatItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6' }]}>
+                <Ionicons name="time-outline" size={18} color={colors.primary[500]} />
+                <Text style={[styles.modernStatText, { color: colors.text }]}>{restaurantData.time}</Text>
+              </View>
+
+              <View style={[styles.modernStatItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6' }]}>
+                <Ionicons name="bicycle-outline" size={18} color={colors.primary[500]} />
+                <Text style={[styles.modernStatText, { color: colors.text }]}>Free</Text>
+              </View>
+
+              <View style={[styles.modernStatItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6' }]}>
+                <Ionicons name="location-outline" size={18} color={colors.primary[500]} />
+                <Text style={[styles.modernStatText, { color: colors.text }]}>2.4 km</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Search Bar */}
+          <View style={[styles.searchContainer, { backgroundColor: colors.background }]}>
+            <View style={[styles.modernSearchBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6' }]}>
+              <Ionicons name="search-outline" size={20} color={colors.textSub} style={{ marginRight: 10 }} />
+              <TextInput
+                style={[styles.searchInput, { color: colors.text }]}
+                placeholder="Search for dishes..."
+                placeholderTextColor={colors.textSub}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
               />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.metaRow}>
-            <View style={styles.ratingBadge}>
-              <Ionicons name="star" size={14} color="#FFB800" />
-              <Text style={[styles.ratingText, { color: colors.text }]}>{restaurantData.rating}</Text>
-              <Text style={[styles.reviewText, { color: colors.textSub }]}>({restaurantData.reviews})</Text>
-            </View>
-            <Text style={[styles.dotSeparator, { color: colors.textSub }]}>•</Text>
-            <Text style={[styles.metaText, { color: colors.textSub }]}>{restaurantData.tags?.join(' • ') || 'Restaurant'}</Text>
-          </View>
-
-          <View style={[styles.deliveryStats, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F1F5F9' }]}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: colors.textSub }]}>Delivery</Text>
-              <Text style={[styles.statValue, { color: colors.text }]}>{restaurantData.time}</Text>
-            </View>
-            <View style={[styles.statItem, styles.statBorder, { borderColor: colors.border }]}>
-              <Text style={[styles.statLabel, { color: colors.textSub }]}>Fee</Text>
-              <Text style={[styles.statValue, { color: colors.text }]}>{restaurantData.deliveryFee}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: colors.textSub }]}>Distance</Text>
-              <Text style={[styles.statValue, { color: colors.text }]}>2.4 km</Text>
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={18} color={colors.textSub} />
+                </TouchableOpacity>
+              )}
             </View>
           </View>
-        </View>
 
-        {/* Filters Bar */}
-        <View style={[styles.filtersWrapper, { backgroundColor: colors.background }]}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filtersContainer}
-          >
-            {['all', 'veg', 'non-veg', 'bestseller', 'rated'].map((filter) => (
+          {/* Sticky Filters & Categories */}
+          <View style={{ backgroundColor: colors.background, paddingBottom: 16 }}>
+            {/* Filters */}
+            <View style={styles.filtersWrapper}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersContainer}>
+                {['all', 'veg', 'non-veg', 'bestseller', 'rated'].map((filter) => {
+                  const isActive = activeFilter === filter;
+                  return (
+                    <TouchableOpacity
+                      key={filter}
+                      style={[
+                        styles.modernChip,
+                        isActive ? { backgroundColor: colors.text } : { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#fff', borderWidth: 1, borderColor: colors.border }
+                      ]}
+                      onPress={() => setActiveFilter(isActive ? 'all' : filter)}
+                    >
+                      {filter === 'veg' && <View style={[styles.vegDot, { backgroundColor: isActive ? '#fff' : '#22C55E' }]} />}
+                      {filter === 'non-veg' && <View style={[styles.vegDot, { backgroundColor: isActive ? '#fff' : '#EF4444' }]} />}
+                      <Text style={[styles.modernChipText, { color: isActive ? colors.background : colors.text }]}>
+                        {filter === 'all' ? 'Sort' :
+                          filter === 'veg' ? 'Veg' :
+                            filter === 'non-veg' ? 'Non-Veg' :
+                              filter === 'bestseller' ? 'Bestseller' : 'Ratings 4.0+'}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Categories */}
+            <View style={styles.categoriesWrapper}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesContent}>
+                {categories.map((category) => {
+                  const isSelected = selectedCategory === category;
+                  return (
+                    <TouchableOpacity
+                      key={category}
+                      style={[
+                        styles.categoryTab,
+                        isSelected && { borderBottomColor: colors.primary[500], borderBottomWidth: 3 }
+                      ]}
+                      onPress={() => setSelectedCategory(category)}
+                    >
+                      <Text style={[
+                        styles.categoryTabText,
+                        { color: isSelected ? colors.text : colors.textSub, fontWeight: isSelected ? '700' : '500' }
+                      ]}>
+                        {category}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+
+          {/* Menu Items List */}
+          <View style={styles.menuSection}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              {selectedCategory} ({filteredItems.length})
+            </Text>
+
+            {filteredItems.map((item) => (
               <TouchableOpacity
-                key={filter}
-                style={[
-                  styles.filterChip,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                  activeFilter === filter && { backgroundColor: colors.primary[500], borderColor: colors.primary[500] }
-                ]}
-                onPress={() => setActiveFilter(activeFilter === filter ? 'all' : filter)}
+                key={item.id}
+                style={[styles.menuItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                activeOpacity={0.7}
               >
-                {filter === 'veg' && <View style={[styles.vegDot, { backgroundColor: activeFilter === 'veg' ? '#fff' : '#22C55E' }]} />}
-                {filter === 'non-veg' && <View style={[styles.vegDot, { backgroundColor: activeFilter === 'non-veg' ? '#fff' : '#EF4444' }]} />}
-                <Text style={[
-                  styles.filterText,
-                  { color: activeFilter === filter ? '#fff' : colors.text },
-                  filter === 'rated' && { fontWeight: '700' }
-                ]}>
-                  {filter === 'all' ? 'All' :
-                    filter === 'veg' ? 'Pure Veg' :
-                      filter === 'non-veg' ? 'Non-Veg' :
-                        filter === 'bestseller' ? 'Bestseller' : 'Rated 4+'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+                <View style={styles.menuItemInfo}>
+                  {/* Veg/Non-Veg Indicator */}
+                  {item.isVeg ? (
+                    <View style={{
+                      width: 15, height: 15, borderWidth: 1, borderColor: '#22C55E',
+                      alignItems: 'center', justifyContent: 'center', marginBottom: 6, borderRadius: 3
+                    }}>
+                      <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: '#22C55E' }} />
+                    </View>
+                  ) : (
+                    <View style={{
+                      width: 15, height: 15, borderWidth: 1, borderColor: '#EF4444',
+                      alignItems: 'center', justifyContent: 'center', marginBottom: 6, borderRadius: 3
+                    }}>
+                      <Ionicons name="caret-up" size={10} color="#EF4444" />
+                    </View>
+                  )}
 
-        {/* Categories Selector */}
-        <View style={[styles.categoriesWrapper, { backgroundColor: colors.background }]}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesContent}
-          >
-            {categories.map((category) => (
-              <TouchableOpacity
-                key={category}
-                style={[
-                  styles.categoryChip,
-                  {
-                    backgroundColor: selectedCategory === category ? colors.primary[500] : colors.surface,
-                    borderColor: selectedCategory === category ? colors.primary[500] : colors.border
-                  }
-                ]}
-                onPress={() => setSelectedCategory(category)}
-              >
-                <Text style={[
-                  styles.categoryText,
-                  { color: selectedCategory === category ? '#fff' : colors.textSub }
-                ]}>
-                  {category}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Menu Items List */}
-        <View style={styles.menuSection}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            {selectedCategory} ({filteredItems.length})
-          </Text>
-
-          {filteredItems.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[styles.menuItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              activeOpacity={0.7}
-            >
-              <View style={styles.menuItemInfo}>
-                <View style={styles.menuItemHeader}>
                   <Text style={[styles.menuItemName, { color: colors.text }]}>{item.name}</Text>
+                  <Text style={[styles.menuItemPrice, { color: colors.text }]}>₹{item.price}</Text>
+                  <Text style={[styles.menuItemDescription, { color: colors.textSub }]} numberOfLines={2}>
+                    {item.description}
+                  </Text>
+
                   {item.averageRating > 0 && (
-                    <View style={styles.ratingContainer}>
-                      <Ionicons name="star" size={14} color="#F59E0B" />
-                      <Text style={[styles.ratingText, { color: colors.text }]}>
-                        {item.averageRating}
-                      </Text>
-                      <Text style={[styles.reviewCount, { color: colors.textSub }]}>
-                        ({item.totalReviews})
-                      </Text>
+                    <View style={styles.ratingPill}>
+                      <Ionicons name="star" size={10} color="#F59E0B" />
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#F59E0B', marginLeft: 2 }}>{item.averageRating}</Text>
+                      <Text style={{ fontSize: 11, color: colors.textSub, marginLeft: 2 }}>({item.totalReviews})</Text>
                     </View>
                   )}
                 </View>
-                <Text style={[styles.menuItemDescription, { color: colors.textSub }]} numberOfLines={2}>
-                  {item.description}
-                </Text>
-                <Text style={[styles.menuItemPrice, { color: colors.text }]}>₹{item.price}</Text>
+
+                <View style={styles.imageContainer}>
+                  <Image source={{ uri: item.image }} style={styles.menuItemImage} />
+                  <TouchableOpacity
+                    style={[
+                      styles.plusButton,
+                      { backgroundColor: restaurantData.isOpen ? colors.primary[500] : colors.gray[400], borderColor: colors.surface }
+                    ]}
+                    disabled={!restaurantData.isOpen}
+                    onPress={() => handleAddToCart(item)}
+                  >
+                    <Ionicons name={restaurantData.isOpen ? "add" : "lock-closed"} size={20} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            {filteredItems.length === 0 && (
+              <View style={{ padding: 20, alignItems: 'center' }}>
+                <Text style={{ color: colors.textSub }}>No items in this category</Text>
               </View>
+            )}
+          </View>
 
-              <View style={styles.imageContainer}>
-                <Image source={{ uri: item.image }} style={styles.menuItemImage} />
-                <TouchableOpacity
-                  style={[
-                    styles.plusButton,
-                    { backgroundColor: restaurantData.isOpen ? colors.primary[500] : colors.gray[400], borderColor: colors.surface }
-                  ]}
-                  disabled={!restaurantData.isOpen}
-                  onPress={() => handleAddToCart(item)}
-                >
-                  <Ionicons name={restaurantData.isOpen ? "add" : "lock-closed"} size={20} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          ))}
-
-          {filteredItems.length === 0 && (
-            <View style={{ padding: 20, alignItems: 'center' }}>
-              <Text style={{ color: colors.textSub }}>No items in this category</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={{ height: 120 }} />
-      </ScrollView>
+          <View style={{ height: 120 }} />
+        </ScrollView>
+      </View>
 
       {/* Bottom Cart Bar - Only show when cart has items */}
       {
@@ -339,6 +358,29 @@ export default function RestaurantDetailScreen({ route, navigation }) {
           </View>
         )
       }
+
+      {/* Fixed Header Overlay - Guaranteed to stay on top */}
+      <View style={styles.headerOverlay} pointerEvents="box-none">
+        <SafeAreaView style={styles.headerButtons} pointerEvents="box-none">
+          <TouchableOpacity
+            style={styles.blurButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.blurButton}
+            onPress={() => toggleFavorite(restaurantId)}
+          >
+            <Ionicons
+              name={favorites.some(f => (f._id || f) === restaurantId) ? "heart" : "heart-outline"}
+              size={22}
+              color={favorites.some(f => (f._id || f) === restaurantId) ? "#E23744" : "#fff"}
+            />
+          </TouchableOpacity>
+        </SafeAreaView>
+      </View>
     </View>
   );
 }
@@ -347,7 +389,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  headerImageContainer: {
+  scrollLayer: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+  },
+  headerImageWrapper: {
     width: '100%',
     height: 280,
   },
@@ -355,59 +403,112 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  headerButtons: {
+  headerOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
+    bottom: 0,
+    zIndex: 9999,
+    elevation: 9999,
+  },
+  headerButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'android' ? 40 : 10,
+    paddingTop: Platform.OS === 'android' ? 45 : 10,
   },
-  roundButton: {
+  blurButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
   },
-  content: {
-    flex: 1,
-    marginTop: -30,
+  closedBanner: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? 100 : 80,
+    left: 20,
+    right: 20,
+    backgroundColor: '#EF4444',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+    zIndex: 99,
+  },
+  closedBannerText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
   },
   infoSection: {
     paddingHorizontal: 24,
-    paddingTop: 12,
+    paddingTop: 24,
     paddingBottom: 24,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    shadowOffset: { width: 0, height: -10 },
-    shadowOpacity: 0.05,
-    shadowRadius: 15,
-    elevation: 10,
+    marginTop: -30,
   },
-  indicator: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  titleRow: {
+  infoHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    marginBottom: 20,
   },
   restaurantName: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '800',
+    marginBottom: 6,
     letterSpacing: -0.5,
+  },
+  metaText: {
+    fontSize: 14,
+    marginTop: 4,
+  },
+  ratingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#22C55E',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  ratingBoxText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  modernStatsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modernStatItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 6,
+  },
+  modernStatText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  searchContainer: {
+    paddingHorizontal: 24,
+    paddingBottom: 4,
+  },
+  modernSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 50,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
   },
   metaRow: {
     flexDirection: 'row',
@@ -592,33 +693,105 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   filtersWrapper: {
-    paddingVertical: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingTop: 12,
   },
   filtersContainer: {
     paddingHorizontal: 24,
-    gap: 8,
+    gap: 10,
   },
-  filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
+  modernChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
     gap: 6,
   },
-  filterText: {
-    fontSize: 13,
+  modernChipText: {
+    fontSize: 14,
     fontWeight: '600',
   },
   vegDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  categoriesWrapper: {
+    paddingTop: 12,
+  },
+  categoriesContent: {
+    paddingHorizontal: 24,
+    gap: 20,
+  },
+  categoryTab: {
+    paddingBottom: 12,
+  },
+  categoryTabText: {
+    fontSize: 15,
+  },
+  menuSection: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    borderRadius: 24,
+    padding: 16,
+    marginBottom: 20,
+    borderBottomWidth: 1,
+  },
+  menuItemInfo: {
+    flex: 1,
+    paddingRight: 16,
+  },
+  menuItemName: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  menuItemPrice: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 4,
+    marginBottom: 6,
+  },
+  menuItemDescription: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  ratingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  imageContainer: {
+    position: 'relative',
+  },
+  menuItemImage: {
+    width: 130,
+    height: 120,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+  },
+  plusButton: {
+    position: 'absolute',
+    bottom: -8,
+    right: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
 });
