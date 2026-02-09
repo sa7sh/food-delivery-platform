@@ -16,6 +16,7 @@ export const ROUTES = {
   CART: 'Cart',
   ORDERS: 'Orders',
   PROFILE: 'Profile',
+  PAYMENT: 'Payment',
 
   // Home Stack
   HOME_SCREEN: 'HomeScreen',

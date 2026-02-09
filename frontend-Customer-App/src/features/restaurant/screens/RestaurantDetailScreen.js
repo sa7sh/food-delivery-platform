@@ -30,7 +30,7 @@ export default function RestaurantDetailScreen({ route, navigation }) {
   const [ratingStats, setRatingStats] = useState({ averageRating: 0, totalReviews: 0 });
 
   // Get cart state
-  const { totalItems, total, addItem } = useCartStore();
+  const { totalItems, total, addItem, items: cartItems, updateItemQuantity, removeItem } = useCartStore();
   const { favorites, toggleFavorite } = useUserStore();
 
   // Animation scroll value for header effects
@@ -130,6 +130,29 @@ export default function RestaurantDetailScreen({ route, navigation }) {
     };
 
     addItem(cartItem);
+  };
+
+  // Helper to get cart item for a menu item
+  const getCartItem = (itemId) => {
+    // Only exact matches without customizations for now (simple add/remove)
+    // For items with customizations, we might need a different UI approach (e.g. "Customize" button)
+    // But assuming simple items for this screen:
+    return cartItems.find(item => item.id === itemId);
+  };
+
+  const handleIncrement = (item) => {
+    handleAddToCart(item);
+  };
+
+  const handleDecrement = (item) => {
+    const cartItem = getCartItem(item.id);
+    if (cartItem) {
+      if (cartItem.quantity > 1) {
+        updateItemQuantity(cartItem.cartItemId, cartItem.quantity - 1);
+      } else {
+        removeItem(cartItem.cartItemId);
+      }
+    }
   };
 
   return (
@@ -314,18 +337,44 @@ export default function RestaurantDetailScreen({ route, navigation }) {
                   )}
                 </View>
 
-                <View style={styles.imageContainer}>
+                <View style={[styles.imageContainer, { alignItems: 'center' }]}>
                   <Image source={{ uri: item.image }} style={styles.menuItemImage} />
-                  <TouchableOpacity
-                    style={[
-                      styles.plusButton,
-                      { backgroundColor: restaurantData.isOpen ? colors.primary[500] : colors.gray[400], borderColor: colors.surface }
-                    ]}
-                    disabled={!restaurantData.isOpen}
-                    onPress={() => handleAddToCart(item)}
-                  >
-                    <Ionicons name={restaurantData.isOpen ? "add" : "lock-closed"} size={20} color="#fff" />
-                  </TouchableOpacity>
+
+                  {getCartItem(item.id) ? (
+                    <View style={[
+                      styles.quantityContainer,
+                      { backgroundColor: colors.surface, borderColor: colors.primary[500] }
+                    ]}>
+                      <TouchableOpacity
+                        style={styles.quantityButton}
+                        onPress={() => handleDecrement(item)}
+                      >
+                        <Ionicons name="remove" size={18} color={colors.primary[500]} />
+                      </TouchableOpacity>
+
+                      <Text style={[styles.quantityText, { color: colors.primary[500] }]}>
+                        {getCartItem(item.id).quantity}
+                      </Text>
+
+                      <TouchableOpacity
+                        style={styles.quantityButton}
+                        onPress={() => handleIncrement(item)}
+                      >
+                        <Ionicons name="add" size={18} color={colors.primary[500]} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={[
+                        styles.plusButton,
+                        { backgroundColor: restaurantData.isOpen ? colors.primary[500] : colors.gray[400], borderColor: colors.surface }
+                      ]}
+                      disabled={!restaurantData.isOpen}
+                      onPress={() => handleAddToCart(item)}
+                    >
+                      <Ionicons name={restaurantData.isOpen ? "add" : "lock-closed"} size={20} color="#fff" />
+                    </TouchableOpacity>
+                  )}
                 </View>
               </TouchableOpacity>
             ))}
@@ -793,5 +842,31 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 5,
+  },
+  quantityContainer: {
+    position: 'absolute',
+    bottom: -10,
+    left: '50%',
+    marginLeft: -40, // Half of width (80/2)
+    width: 90,
+    height: 36,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  quantityButton: {
+    padding: 2,
+  },
+  quantityText: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });

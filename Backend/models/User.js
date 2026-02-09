@@ -50,6 +50,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    averageRating: {
+      type: Number,
+      default: 0,
+    },
+    totalReviews: {
+      type: Number,
+      default: 0,
+    },
     role: {
       type: String,
       default: "user",

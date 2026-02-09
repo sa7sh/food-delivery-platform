@@ -35,7 +35,7 @@ const orderSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["COD", "Online", "Card", "UPI"],
+      enum: ["COD", "Online", "Card", "UPI", "GPAY", "PHONEPE", "CARD"],
       default: "COD",
     },
     isDeletedByRestaurant: {

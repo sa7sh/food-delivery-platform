@@ -9,6 +9,7 @@ import { colors } from '../theme';
 
 // Import navigators and screens
 import SplashScreen from '../features/splash/SplashScreen';
+import PaymentScreen from '../features/cart/screens/PaymentScreen';
 import AuthStack from './AuthStack';
 import MainTabNavigator from './MainTabNavigator';
 
@@ -72,7 +73,17 @@ export default function RootNavigator() {
             )}
           </Stack.Screen>
         ) : isAuthenticated ? (
-          <Stack.Screen name={ROUTES.MAIN} component={MainTabNavigator} />
+          <>
+            <Stack.Screen name={ROUTES.MAIN} component={MainTabNavigator} />
+            <Stack.Screen
+              name={ROUTES.PAYMENT}
+              component={PaymentScreen}
+              options={{
+                animation: 'slide_from_bottom',
+                presentation: 'fullScreenModal'
+              }}
+            />
+          </>
         ) : (
           <Stack.Screen name={ROUTES.AUTH} component={AuthStack} />
         )}

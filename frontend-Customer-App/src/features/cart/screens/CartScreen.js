@@ -90,50 +90,23 @@ export default function CartScreen() {
       return;
     }
 
-    try {
-      setIsPlacingOrder(true);
-      const orderData = {
-        restaurantId: restaurant.id,
-        items: items.map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-          foodId: item.id,
-          image: item.image || item.imageUrl || 'https://via.placeholder.com/100'
-        })),
-        totalAmount: total,
-        deliveryAddress: `${selectedAddress.street}, ${selectedAddress.city}`,
-        paymentMethod: 'COD' // Defaulting to COD for now
-      };
+    const orderData = {
+      restaurantId: restaurant.id,
+      items: items.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        foodId: item.id,
+        image: item.image || item.imageUrl || 'https://via.placeholder.com/100',
+        // Only include foodId if it's a valid MongoDB ObjectId (24 hex chars)
+        // This prevents "Cast to ObjectId failed" errors if using mock IDs
+        ...(item.id && /^[0-9a-fA-F]{24}$/.test(item.id) ? { foodId: item.id } : {})
+      })),
+      totalAmount: total,
+      deliveryAddress: `${selectedAddress.street}, ${selectedAddress.city}`,
+    };
 
-      // orderData is already declared above at line 94
-
-      const response = await orderService.placeOrder(orderData);
-
-      setIsPlacingOrder(false);
-      Alert.alert('Success', 'Order placed successfully!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            clearCart();
-            navigation.navigate(ROUTES.HOME);
-          }
-        }
-      ]);
-    } catch (error) {
-      console.error("CartScreen Checkout Error:", error);
-      if (error.response) {
-        console.error("Error Response Data:", error.response.data);
-        console.error("Error Status:", error.response.status);
-      } else if (error.request) {
-        console.error("Error Request:", error.request);
-      } else {
-        console.error("Error Message:", error.message);
-      }
-
-      setIsPlacingOrder(false);
-      Alert.alert('Error', error.response?.data?.message || error.message || 'Failed to place order. Please try again.');
-    }
+    navigation.navigate(ROUTES.PAYMENT, { orderData });
   };
 
   if (items.length === 0) {

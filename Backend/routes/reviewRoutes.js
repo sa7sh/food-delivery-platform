@@ -50,6 +50,20 @@ router.post("/", protect, async (req, res) => {
 
       createdReviews.push(restaurantReview);
       order.restaurantReviewed = true;
+
+      // Update Restaurant Average Rating
+      const allRestReviews = await Review.find({ restaurantId, reviewType: "restaurant" });
+      const totalReviews = allRestReviews.length; // Includes the one just added
+      const avgRating = totalReviews > 0
+        ? (allRestReviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews).toFixed(1)
+        : 0;
+
+      await import("../models/User.js").then(async ({ default: User }) => {
+        await User.findByIdAndUpdate(restaurantId, {
+          averageRating: parseFloat(avgRating),
+          totalReviews: totalReviews
+        });
+      });
     }
 
     // 2. Create Food Item Reviews (if provided)

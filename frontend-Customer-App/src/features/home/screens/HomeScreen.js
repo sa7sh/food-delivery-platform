@@ -660,8 +660,8 @@ export default function HomeScreen() {
                             item={{
                               id: rest._id,
                               name: rest.name,
-                              rating: 4.5,
-                              reviews: '100+',
+                              rating: rest.averageRating || 0,
+                              reviews: rest.totalReviews || 0,
                               time: '25-35 min',
                               deliveryFee: 'Free',
                               tags: [rest.cuisineType || 'Restaurant'],
@@ -774,8 +774,8 @@ export default function HomeScreen() {
                         item={{
                           id: rest._id,
                           name: rest.name,
-                          rating: 4.5,
-                          reviews: '100+',
+                          rating: rest.averageRating || 0,
+                          reviews: rest.totalReviews || 0,
                           time: '25-35 min',
                           deliveryFee: 'Free',
                           tags: [rest.cuisineType || 'Restaurant'],
