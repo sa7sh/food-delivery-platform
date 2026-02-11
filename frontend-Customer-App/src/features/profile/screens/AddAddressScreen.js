@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import * as Location from 'expo-location';
 import {
   View,
   Text,
@@ -23,6 +24,7 @@ export default function AddAddressScreen() {
   const { colors, isDark } = useTheme();
   const { addAddress, isLoading } = useUserStore();
 
+  const [isLocating, setIsLocating] = useState(false);
   const [formData, setFormData] = useState({
     label: '',
     street: '',
@@ -30,8 +32,46 @@ export default function AddAddressScreen() {
     state: '',
     pincode: '',
     landmark: '',
+    latitude: null,
+    longitude: null,
     isDefault: false,
   });
+
+  const handleUseLocation = async () => {
+    setIsLocating(true);
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Permission to access location was denied');
+        setIsLocating(false);
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+
+      // Reverse Geocoding
+      let addressResponse = await Location.reverseGeocodeAsync({ latitude, longitude });
+
+      if (addressResponse.length > 0) {
+        const addr = addressResponse[0];
+        setFormData(prev => ({
+          ...prev,
+          street: `${addr.name || ''} ${addr.street || ''}`.trim(),
+          city: addr.city || addr.subregion || '',
+          state: addr.region || '',
+          pincode: addr.postalCode || '',
+          latitude,
+          longitude,
+        }));
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'Could not detect location. Please try again or enter manually.');
+    } finally {
+      setIsLocating(false);
+    }
+  };
 
   const [errors, setErrors] = useState({});
 
@@ -132,6 +172,22 @@ export default function AddAddressScreen() {
           </View>
           {errors.label && <Text style={styles.errorText}>{errors.label}</Text>}
 
+          {/* Use Current Location Button */}
+          <TouchableOpacity
+            style={styles.locationButton}
+            onPress={handleUseLocation}
+            disabled={isLocating}
+          >
+            {isLocating ? (
+              <ActivityIndicator size="small" color="#9139BA" />
+            ) : (
+              <Ionicons name="locate" size={20} color="#9139BA" />
+            )}
+            <Text style={styles.locationButtonText}>
+              {isLocating ? 'Detecting Location...' : 'Use Current Location'}
+            </Text>
+          </TouchableOpacity>
+
           {/* Form Fields */}
           <View style={styles.formGroup}>
             <Text style={[styles.label, { color: colors.textSub }]}>Street Address</Text>
@@ -230,6 +286,16 @@ export default function AddAddressScreen() {
             />
           </View>
 
+          {/* Location Coordinates Preview (Optional but good for debugging/confirmation) */}
+          {formData.latitude && formData.longitude && (
+            <View style={[styles.coordinatesBox, { backgroundColor: colors.surfaceHighlight }]}>
+              <Ionicons name="location-sharp" size={16} color={colors.primary[500]} />
+              <Text style={[styles.coordinatesText, { color: colors.textSub }]}>
+                GPS: {formData.latitude.toFixed(4)}, {formData.longitude.toFixed(4)}
+              </Text>
+            </View>
+          )}
+
           {/* Default Switch */}
           <View style={[styles.switchRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.switchLabel, { color: colors.text }]}>Set as default address</Text>
@@ -287,7 +353,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   sectionTitle: {
     fontSize: 16,
@@ -312,6 +378,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3E8FF',
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 20,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#DBC0E8',
+  },
+  locationButtonText: {
+    color: '#9139BA',
+    fontWeight: '600',
+    fontSize: 15,
+  },
   formGroup: {
     marginBottom: 16,
   },
@@ -335,6 +418,19 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 12,
     marginTop: 4,
+  },
+  coordinatesBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: -8,
+    marginBottom: 16,
+    gap: 6,
+  },
+  coordinatesText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   switchRow: {
     flexDirection: 'row',

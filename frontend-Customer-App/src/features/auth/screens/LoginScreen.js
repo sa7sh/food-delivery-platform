@@ -20,22 +20,39 @@ import { colors } from '../../../theme';
 
 export default function LoginScreen() {
   const navigation = useNavigation();
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const { login, sendOTP, verifyOTP, isLoading, error, clearError } = useAuthStore();
+
+  const [loginMode, setLoginMode] = useState('password'); // 'password' | 'otp'
+  const [otpSent, setOtpSent] = useState(false);
+  const [timer, setTimer] = useState(0);
+  const [resendEnabled, setResendEnabled] = useState(true);
 
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    otp: '',
   });
+
+  // Timer logic
+  React.useEffect(() => {
+    let interval;
+    if (timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    } else {
+      setResendEnabled(true);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
 
   const [formErrors, setFormErrors] = useState({});
 
   const handleChange = (name, value) => {
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear field specific error when user types
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: null }));
     }
-    // Clear global error
     if (error) clearError();
   };
 
@@ -44,8 +61,14 @@ export default function LoginScreen() {
     if (!formData.email) errors.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = 'Email is invalid';
 
-    if (!formData.password) errors.password = 'Password is required';
-    else if (formData.password.length < 6) errors.password = 'Password must be at least 6 characters';
+    if (loginMode === 'password') {
+      if (!formData.password) errors.password = 'Password is required';
+      else if (formData.password.length < 6) errors.password = 'Password must be at least 6 characters';
+    } else {
+      // OTP Mode validation
+      if (otpSent && !formData.otp) errors.otp = 'OTP is required';
+      else if (otpSent && formData.otp.length !== 6) errors.otp = 'OTP must be 6 digits';
+    }
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -53,11 +76,29 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (validate()) {
-      const result = await login(formData);
-      if (result.success) {
-        // Navigation is handled automatically by RootNavigator based on auth state
-        console.log('Login successful');
+      if (loginMode === 'password') {
+        const result = await login(formData);
+        if (result.success) console.log('Login successful');
+      } else {
+        // OTP Mode - Verify
+        if (!otpSent) {
+          // Send OTP
+          await handleSendOTP();
+        } else {
+          // Verify
+          const result = await verifyOTP({ email: formData.email, otp: formData.otp });
+          if (result.success) console.log('OTP Login successful');
+        }
       }
+    }
+  };
+
+  const handleSendOTP = async () => {
+    const result = await sendOTP(formData.email);
+    if (result.success) {
+      setOtpSent(true);
+      setTimer(30);
+      setResendEnabled(false);
     }
   };
 
@@ -69,10 +110,6 @@ export default function LoginScreen() {
     navigation.navigate(ROUTES.FORGOT_PASSWORD);
   };
 
-  // Pre-fill for demo purposes (optional, good for testing)
-  // useEffect(() => {
-  //   setFormData({ email: 'user@example.com', password: 'password123' });
-  // }, []);
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -105,7 +142,24 @@ export default function LoginScreen() {
             </View>
 
             {/* Form */}
-            <View className="w-full space-y-4">
+            <View className="w-full">
+
+              {/* Toggle Login Mode */}
+              <View className="flex-row mb-4 bg-gray-100 p-1 rounded-xl">
+                <TouchableOpacity
+                  onPress={() => { setLoginMode('password'); setOtpSent(false); clearError(); }}
+                  className={`flex-1 py-2 rounded-lg items-center ${loginMode === 'password' ? 'bg-white shadow-sm' : ''}`}
+                >
+                  <Text className={`font-semibold ${loginMode === 'password' ? 'text-primary-600' : 'text-gray-500'}`}>Password</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => { setLoginMode('otp'); clearError(); }}
+                  className={`flex-1 py-2 rounded-lg items-center ${loginMode === 'otp' ? 'bg-white shadow-sm' : ''}`}
+                >
+                  <Text className={`font-semibold ${loginMode === 'otp' ? 'text-primary-600' : 'text-gray-500'}`}>OTP Login</Text>
+                </TouchableOpacity>
+              </View>
+
               {error && (
                 <View className="bg-primary-50 p-4 rounded-xl mb-4 border border-primary-100 flex-row items-center">
                   <Text className="text-primary-600 flex-1 text-sm font-medium">
@@ -114,37 +168,72 @@ export default function LoginScreen() {
                 </View>
               )}
 
-              <Input
-                label="Email Address"
-                placeholder="name@example.com"
-                value={formData.email}
-                onChangeText={(text) => handleChange('email', text)}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                error={formErrors.email}
-              />
+              <View className="mb-4">
+                <Input
+                  label="Email Address"
+                  placeholder="name@example.com"
+                  value={formData.email}
+                  onChangeText={(text) => handleChange('email', text)}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  error={formErrors.email}
+                  editable={!otpSent || loginMode === 'password'}
+                />
+              </View>
 
-              <Input
-                label="Password"
-                placeholder="Enter your password"
-                value={formData.password}
-                onChangeText={(text) => handleChange('password', text)}
-                secureTextEntry
-                error={formErrors.password}
-              />
-
-              <TouchableOpacity
-                onPress={navigateToForgotPassword}
-                className="self-end pt-2"
-              >
-                <Text className="text-primary-600 font-semibold text-sm">
-                  Forgot Password?
-                </Text>
-              </TouchableOpacity>
+              {loginMode === 'password' ? (
+                <View>
+                  <Input
+                    label="Password"
+                    placeholder="Enter your password"
+                    value={formData.password}
+                    onChangeText={(text) => handleChange('password', text)}
+                    secureTextEntry
+                    error={formErrors.password}
+                  />
+                  <TouchableOpacity
+                    onPress={navigateToForgotPassword}
+                    className="self-end pt-2"
+                  >
+                    <Text className="text-primary-600 font-semibold text-sm">
+                      Forgot Password?
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View>
+                  {otpSent && (
+                    <View>
+                      <Input
+                        label="Enter OTP"
+                        placeholder="123456"
+                        value={formData.otp}
+                        onChangeText={(text) => handleChange('otp', text)}
+                        keyboardType="numeric"
+                        maxLength={6}
+                        error={formErrors.otp}
+                      />
+                      <View className="mt-2 flex-row justify-end items-center">
+                        {timer > 0 ? (
+                          <Text className="text-gray-500 text-sm">Resend code in {timer}s</Text>
+                        ) : (
+                          <TouchableOpacity onPress={handleSendOTP} disabled={!resendEnabled}>
+                            <Text className="text-primary-600 font-semibold text-sm">Resend OTP</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  )}
+                </View>
+              )}
 
               <View className="mt-6">
                 <Button
-                  title="Sign In"
+                  title={
+                    loginMode === 'password'
+                      ? "Sign In"
+                      : (otpSent ? "Verify & Login" : "Send OTP")
+                  }
                   onPress={handleLogin}
                   loading={isLoading}
                   size="lg"

@@ -61,7 +61,11 @@ export const useUserStore = create((set, get) => ({
 
       const response = await userService.getAddresses();
 
-      const addresses = response.data || response || [];
+      const rawAddresses = response.data || response || [];
+      const addresses = rawAddresses.map(addr => ({
+        ...addr,
+        id: addr.id || addr._id,
+      }));
       const defaultAddress = addresses.find((addr) => addr.isDefault);
 
       set({
@@ -82,7 +86,7 @@ export const useUserStore = create((set, get) => ({
       const response = await userService.addAddress(addressData);
 
       const newAddress = {
-        id: response.data?.id || response.id || Date.now().toString(),
+        id: response.data?.id || response.data?._id || response.id || Date.now().toString(),
         ...addressData,
       };
 

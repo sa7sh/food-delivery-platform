@@ -59,4 +59,5 @@ logs
 # Exclude other folders (only push frontend-Customer-App and Backend)
 frontend/
 frontend-Restaurant-App/
+frontend-Rest-App/
 RestaurantPartnerExpo/

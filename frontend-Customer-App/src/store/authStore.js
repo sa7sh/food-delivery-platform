@@ -19,13 +19,38 @@ export const useAuthStore = create((set, get) => ({
 
   setError: (error) => set({ error }),
 
-  // OTP Verification
+  // Send OTP
+  sendOTP: async (email) => {
+    try {
+      set({ isLoading: true, error: null });
+      const response = await authService.sendOTP(email);
+      set({ isLoading: false });
+      return { success: true, message: response.message };
+    } catch (error) {
+      set({ isLoading: false, error: error.message });
+      return { success: false, error: error.message };
+    }
+  },
+
+  // OTP Verification & Login
   verifyOTP: async (data) => {
     try {
       set({ isLoading: true, error: null });
       const response = await authService.verifyOTP(data);
 
-      set({ isLoading: false });
+      const { user, token } = response;
+
+      // Save to secure storage
+      if (token) await secureStorage.saveToken(token);
+      if (user) await secureStorage.saveUserData(user);
+
+      set({
+        user,
+        token,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+
       return { success: true, data: response };
     } catch (error) {
       set({ isLoading: false, error: error.message });
