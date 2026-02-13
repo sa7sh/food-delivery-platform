@@ -924,6 +924,87 @@ router.get("/public/restaurants", async (req, res) => {
   }
 });
 
+// Advanced Restaurant Search with Filters
+router.get("/public/restaurants/search", async (req, res) => {
+  try {
+    console.log(`[Backend] GET /public/restaurants/search HIT`);
+    const { query, cuisineType, isOpen, minAvgPrice, maxAvgPrice, sortBy } = req.query;
+
+    let dbQuery = { role: { $in: ['user', 'restaurant'] } };
+
+    // Text search
+    if (query) {
+      dbQuery.$or = [
+        { name: { $regex: query, $options: "i" } },
+        { cuisineType: { $regex: query, $options: "i" } }
+      ];
+    }
+
+    // Cuisine filter
+    if (cuisineType) {
+      dbQuery.cuisineType = { $regex: cuisineType, $options: "i" };
+    }
+
+    // Open status filter
+    if (isOpen === 'true') {
+      dbQuery.isOpen = true;
+    }
+
+    let restaurants = await User.find(dbQuery)
+      .select('-password')
+      .lean();
+
+    // Calculate average price for each restaurant
+    for (let restaurant of restaurants) {
+      const foods = await FoodItem.find({ restaurantId: restaurant._id, isAvailable: true });
+      if (foods.length > 0) {
+        const avgPrice = foods.reduce((sum, food) => sum + food.price, 0) / foods.length;
+        restaurant.averagePrice = Math.round(avgPrice * 100) / 100; // Round to 2 decimals
+        restaurant.menuCount = foods.length;
+      } else {
+        restaurant.averagePrice = 0;
+        restaurant.menuCount = 0;
+      }
+    }
+
+    // Filter by average price range
+    if (minAvgPrice || maxAvgPrice) {
+      restaurants = restaurants.filter(r => {
+        if (minAvgPrice && r.averagePrice < parseFloat(minAvgPrice)) return false;
+        if (maxAvgPrice && r.averagePrice > parseFloat(maxAvgPrice)) return false;
+        return true;
+      });
+    }
+
+    // Sorting
+    if (sortBy) {
+      switch (sortBy) {
+        case 'rating':
+          restaurants.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
+          break;
+        case 'price-asc':
+          restaurants.sort((a, b) => (a.averagePrice || 0) - (b.averagePrice || 0));
+          break;
+        case 'price-desc':
+          restaurants.sort((a, b) => (b.averagePrice || 0) - (a.averagePrice || 0));
+          break;
+        case 'name':
+          restaurants.sort((a, b) => a.name.localeCompare(b.name));
+          break;
+        default:
+          // Default sorting by createdAt (most recent first)
+          restaurants.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          break;
+      }
+    }
+
+    res.json(restaurants);
+  } catch (error) {
+    console.error(`[Backend] GET /public/restaurants/search ERROR:`, error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // SEARCH (Public - Food Items OR Restaurants)
 router.get("/public/search", async (req, res) => {
   try {
@@ -960,25 +1041,9 @@ router.get("/public/search", async (req, res) => {
       }
 
       // Dietary Filter
+      // Dietary Filter
       if (dietary === 'veg') {
-        // Assuming 'Veg' category or tag indicates veg. 
-        // Ideally we should have isVeg boolean on FoodItem. 
-        // Based on mock data, let's use category/tags logic or check if 'veg' is in name/description if schema doesn't have explicit isVeg
-        // Checking schema: It doesn't have isVeg. Let's rely on category or tags containing 'Veg'
-        const vegRegex = /veg/i;
-        const nonVegRegex = /non-veg/i; // simple check to exclude non-veg if we only want veg
-
-        // This is a naive implementation; ideal is adding isVeg to schema. 
-        // For now, let's enforce tags/category contains 'Veg'
-        dbQuery.$and = dbQuery.$and || [];
-        dbQuery.$and.push({
-          $or: [
-            { category: { $regex: vegRegex } },
-            { tags: { $regex: vegRegex } },
-            { name: { $regex: vegRegex } }
-          ]
-        });
-        // Optimization: Exclude explicit non-veg if mixed
+        dbQuery.dietaryType = 'veg';
       }
 
       // Price Range Filter

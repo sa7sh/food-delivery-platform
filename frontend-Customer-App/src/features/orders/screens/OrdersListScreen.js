@@ -15,9 +15,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { ROUTES, ORDER_STATUS } from '../../../constants';
 import { useOrdersStore, useCartStore } from '../../../store';
 import { useTheme } from '../../../hooks/useTheme';
+import { socketService } from '../../../services/socket';
+import { useAuthStore } from '../../../store/authStore';
 
-// Components
-import OrderCard from '../components/OrderCard';
+// ... imports remain the same
 
 export default function OrdersListScreen() {
   const navigation = useNavigation();
@@ -26,13 +27,40 @@ export default function OrdersListScreen() {
   const [selectedFilter, setSelectedFilter] = useState('all');
   const { colors, isDark } = useTheme();
 
+  // Get user ID from auth store (or however you store it)
+  // You might need to adjust this depending on your authStore structure
+  const user = useAuthStore((state) => state.user);
+
   useEffect(() => {
     loadOrders();
 
-    // Poll for order updates every 30 seconds to keep list fresh (reduced from 15s for better performance)
+    // Connect to socket
+    if (user?._id) {
+      socketService.connect(user._id);
+
+      // Listen for order updates
+      socketService.on('orderStatusUpdated', (data) => {
+        console.log('Order status updated:', data);
+        // Refresh orders immediately
+        fetchOrders();
+        // Optional: Show a toast or notification here
+      });
+    }
+
+    return () => {
+      // Clean up listeners but maybe keep connection if needed elsewhere?
+      // For now, we can leave it connected or disconnect if checking out
+      // socketService.disconnect(); 
+      socketService.off('orderStatusUpdated');
+    };
+  }, [user?._id]); // Re-run if user changes
+
+  // Removing the interval polling as socket should handle it, 
+  // but keeping a longer backup poll might be safe.
+  useEffect(() => {
     const interval = setInterval(() => {
       loadOrders();
-    }, 30000);
+    }, 60000); // Poll every 60s as backup
 
     return () => clearInterval(interval);
   }, []);

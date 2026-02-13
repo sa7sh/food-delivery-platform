@@ -39,19 +39,59 @@ router.get("/latest", async (req, res) => {
 /* Search Foods */
 router.get("/search", async (req, res) => {
   try {
-    const { query, isOpen } = req.query;
-    let dbQuery = {
-      name: { $regex: query, $options: "i" },
-      isAvailable: true
-    };
+    const { query, isOpen, dietaryType, minPrice, maxPrice, category, sortBy } = req.query;
 
-    const foods = await FoodItem.find(dbQuery)
-      .populate('restaurantId', 'name profileImage cuisineType address isOpen'); // Populate isOpen
+    let dbQuery = { isAvailable: true };
 
-    // If isOpen filter is requested, filter in memory since we can't easily query populated fields in standard Mongo without aggregation
+    // Text search
+    if (query) {
+      dbQuery.name = { $regex: query, $options: "i" };
+    }
+
+    // Dietary filter
+    if (dietaryType && dietaryType !== 'any') {
+      dbQuery.dietaryType = dietaryType;
+    }
+
+    // Price range filter
+    if (minPrice || maxPrice) {
+      dbQuery.price = {};
+      if (minPrice) dbQuery.price.$gte = parseFloat(minPrice);
+      if (maxPrice) dbQuery.price.$lte = parseFloat(maxPrice);
+    }
+
+    // Category filter
+    if (category) {
+      dbQuery.category = { $regex: category, $options: "i" };
+    }
+
+    let foods = await FoodItem.find(dbQuery)
+      .populate('restaurantId', 'name profileImage cuisineType address isOpen averageRating');
+
+    // Filter by restaurant open status (in-memory since it's a populated field)
     if (isOpen === 'true') {
-      const openFoods = foods.filter(food => food.restaurantId && food.restaurantId.isOpen);
-      return res.json(openFoods);
+      foods = foods.filter(food => food.restaurantId && food.restaurantId.isOpen);
+    }
+
+    // Sorting
+    if (sortBy) {
+      switch (sortBy) {
+        case 'rating':
+          foods.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
+          break;
+        case 'price-asc':
+          foods.sort((a, b) => a.price - b.price);
+          break;
+        case 'price-desc':
+          foods.sort((a, b) => b.price - a.price);
+          break;
+        case 'name':
+          foods.sort((a, b) => a.name.localeCompare(b.name));
+          break;
+        default:
+          // No sorting or default sorting by createdAt (already done in query)
+          break;
+      }
     }
 
     res.json(foods);

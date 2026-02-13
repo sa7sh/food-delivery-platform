@@ -37,15 +37,18 @@ export const getLatestFoods = async (limit = 10) => {
 };
 
 /**
- * Search food items by query
- * @param {string} query - Search query
+ * Search food items by query and filters
+ * @param {string|Object} queryOrParams - Search query string or params object
  * @returns {Promise<Array>} Array of matching food items
  */
-export const searchFoods = async (query) => {
+export const searchFoods = async (queryOrParams) => {
   try {
-    const response = await httpClient.get('/foods/search', {
-      params: { query }
-    });
+    // Support both old (string) and new (object) parameter formats
+    const params = typeof queryOrParams === 'string'
+      ? { query: queryOrParams }
+      : queryOrParams;
+
+    const response = await httpClient.get('/foods/search', { params });
     return response;
   } catch (error) {
     console.error('Search foods error:', error);
