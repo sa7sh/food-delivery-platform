@@ -1,6 +1,6 @@
 # Treato - Food Delivery App
 
-A full-stack food delivery application with Customer App and Backend.
+A full-stack food delivery application with Customer App, Restaurant App and Backend.
 
 ## 📁 Project Structure
 
