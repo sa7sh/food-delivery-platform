@@ -5,6 +5,7 @@ A full-stack food delivery application with Customer App and Backend.
 ## 📁 Project Structure
 
 - **frontend-Customer-App/** - React Native Expo app for customers
+- **frontend-Rest-App/** - React Native Expo app for restaurants
 - **Backend/** - Node.js Express backend with MongoDB
 
 ## 🚀 Getting Started
@@ -20,6 +21,13 @@ npm start
 ### Customer App Setup
 ```bash
 cd frontend-Customer-App
+npm install
+npx expo start
+```
+
+### Restaurant App Setup
+```bash
+cd frontend-Rest-App
 npm install
 npx expo start
 ```
