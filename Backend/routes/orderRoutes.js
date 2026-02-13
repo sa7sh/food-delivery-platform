@@ -97,6 +97,10 @@ router.post("/", protect, async (req, res) => {
         if (item.foodId) {
           const foodItem = foodItems.find(f => f._id.toString() === item.foodId.toString());
           if (foodItem) {
+            if (!foodItem.isAvailable) {
+              console.log(`ERROR: Item ${foodItem.name} is unavailable`);
+              return res.status(400).json({ message: `Item '${foodItem.name}' is currently unavailable` });
+            }
             calculatedTotal += foodItem.price * item.quantity;
           } else {
             console.log("WARNING: Food item not found for ID:", item.foodId);

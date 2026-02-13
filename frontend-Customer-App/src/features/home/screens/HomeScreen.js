@@ -315,12 +315,47 @@ const FilterModal = ({ visible, onClose, onApply, activeFilters, onReset }) => {
     }));
   };
 
+  const toggleDietary = (dietary) => {
+    setLocalFilters(prev => ({
+      ...prev,
+      dietaryType: prev.dietaryType === dietary ? null : dietary
+    }));
+  };
+
   const toggleOpen = () => {
     setLocalFilters(prev => ({
       ...prev,
       isOpen: !prev.isOpen
     }));
   };
+
+  const updatePriceRange = (type, value) => {
+    setLocalFilters(prev => ({
+      ...prev,
+      [type]: value
+    }));
+  };
+
+  const updateSort = (sortValue) => {
+    setLocalFilters(prev => ({
+      ...prev,
+      sortBy: prev.sortBy === sortValue ? null : sortValue
+    }));
+  };
+
+  const DIETARY_OPTIONS = [
+    { id: 'any', label: 'Any', icon: 'restaurant-outline' },
+    { id: 'veg', label: 'Vegetarian', icon: 'leaf-outline' },
+    { id: 'non-veg', label: 'Non-Veg', icon: 'fish-outline' },
+    { id: 'vegan', label: 'Vegan', icon: 'flower-outline' },
+  ];
+
+  const SORT_OPTIONS = [
+    { id: 'rating', label: 'Top Rated', icon: 'star' },
+    { id: 'price-asc', label: 'Price: Low to High', icon: 'arrow-up' },
+    { id: 'price-desc', label: 'Price: High to Low', icon: 'arrow-down' },
+    { id: 'name', label: 'Name (A-Z)', icon: 'text' },
+  ];
 
   return (
     <Modal
@@ -341,73 +376,176 @@ const FilterModal = ({ visible, onClose, onApply, activeFilters, onReset }) => {
           </View>
 
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Filter</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Filters & Sort</Text>
             <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
               <Ionicons name="close" size={20} color={colors.text} />
             </TouchableOpacity>
           </View>
 
-          <View style={styles.filterSection}>
-            <Text style={[styles.filterLabel, { color: colors.textSub }]}>AVAILABILITY</Text>
-            <TouchableOpacity
-              style={[
-                styles.filterOptionRow,
-                {
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.background,
-                  borderColor: localFilters.isOpen ? '#9139BA' : colors.border,
-                  borderWidth: 1
-                }
-              ]}
-              onPress={toggleOpen}
-              activeOpacity={0.7}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="time-outline" size={22} color={localFilters.isOpen ? '#9139BA' : colors.textSub} style={{ marginRight: 12 }} />
-                <Text style={[styles.filterOptionText, { color: colors.text }]}>Open Now</Text>
-              </View>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: '70%' }}>
+            {/* Availability */}
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterLabel, { color: colors.textSub }]}>AVAILABILITY</Text>
+              <TouchableOpacity
+                style={[
+                  styles.filterOptionRow,
+                  {
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.background,
+                    borderColor: localFilters.isOpen ? '#9139BA' : colors.border,
+                    borderWidth: 1
+                  }
+                ]}
+                onPress={toggleOpen}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="time-outline" size={22} color={localFilters.isOpen ? '#9139BA' : colors.textSub} style={{ marginRight: 12 }} />
+                  <Text style={[styles.filterOptionText, { color: colors.text }]}>Open Now</Text>
+                </View>
 
-              <View style={[
-                styles.toggleCircle,
-                {
-                  backgroundColor: localFilters.isOpen ? '#9139BA' : 'transparent',
-                  borderColor: localFilters.isOpen ? '#9139BA' : colors.textSub
-                }
-              ]}>
-                {localFilters.isOpen && <Ionicons name="checkmark" size={14} color="#fff" />}
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.filterSection}>
-            <Text style={[styles.filterLabel, { color: colors.textSub }]}>CUISINES</Text>
-            <View style={styles.chipContainer}>
-              {CATEGORIES.map(cat => {
-                const isActive = localFilters.cuisine === cat.name;
-                return (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: isActive ? '#9139BA' : (isDark ? 'rgba(255,255,255,0.05)' : colors.background),
-                        borderColor: isActive ? '#9139BA' : colors.border,
-                      }
-                    ]}
-                    onPress={() => toggleCuisine(cat.name)}
-                  >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        { color: isActive ? '#fff' : colors.text }
-                      ]}
-                    >
-                      {cat.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+                <View style={[
+                  styles.toggleCircle,
+                  {
+                    backgroundColor: localFilters.isOpen ? '#9139BA' : 'transparent',
+                    borderColor: localFilters.isOpen ? '#9139BA' : colors.textSub
+                  }
+                ]}>
+                  {localFilters.isOpen && <Ionicons name="checkmark" size={14} color="#fff" />}
+                </View>
+              </TouchableOpacity>
             </View>
-          </View>
+
+            {/* Dietary Preferences */}
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterLabel, { color: colors.textSub }]}>DIETARY PREFERENCES</Text>
+              <View style={styles.chipContainer}>
+                {DIETARY_OPTIONS.map(option => {
+                  const isActive = localFilters.dietaryType === option.id;
+                  return (
+                    <TouchableOpacity
+                      key={option.id}
+                      style={[
+                        styles.chip,
+                        {
+                          backgroundColor: isActive ? '#9139BA' : (isDark ? 'rgba(255,255,255,0.05)' : colors.background),
+                          borderColor: isActive ? '#9139BA' : colors.border,
+                        }
+                      ]}
+                      onPress={() => toggleDietary(option.id)}
+                    >
+                      <Ionicons name={option.icon} size={16} color={isActive ? '#fff' : colors.textSub} style={{ marginRight: 6 }} />
+                      <Text
+                        style={[
+                          styles.chipText,
+                          { color: isActive ? '#fff' : colors.text }
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Price Range */}
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterLabel, { color: colors.textSub }]}>PRICE RANGE</Text>
+              <View style={{ paddingHorizontal: 8 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <Text style={[styles.priceLabel, { color: colors.text }]}>
+                    Min: ₹{localFilters.minPrice || 0}
+                  </Text>
+                  <Text style={[styles.priceLabel, { color: colors.text }]}>
+                    Max: ₹{localFilters.maxPrice || 0}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <TextInput
+                    style={[styles.priceInput, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.background, color: colors.text, borderColor: colors.border }]}
+                    placeholder="Min"
+                    placeholderTextColor={colors.textSub}
+                    keyboardType="numeric"
+                    value={localFilters.minPrice?.toString() || ''}
+                    onChangeText={(val) => updatePriceRange('minPrice', val ? parseFloat(val) : null)}
+                  />
+                  <TextInput
+                    style={[styles.priceInput, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.background, color: colors.text, borderColor: colors.border }]}
+                    placeholder="Max"
+                    placeholderTextColor={colors.textSub}
+                    keyboardType="numeric"
+                    value={localFilters.maxPrice?.toString() || ''}
+                    onChangeText={(val) => updatePriceRange('maxPrice', val ? parseFloat(val) : null)}
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Cuisines */}
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterLabel, { color: colors.textSub }]}>CUISINES</Text>
+              <View style={styles.chipContainer}>
+                {CATEGORIES.map(cat => {
+                  const isActive = localFilters.cuisine === cat.name;
+                  return (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[
+                        styles.chip,
+                        {
+                          backgroundColor: isActive ? '#9139BA' : (isDark ? 'rgba(255,255,255,0.05)' : colors.background),
+                          borderColor: isActive ? '#9139BA' : colors.border,
+                        }
+                      ]}
+                      onPress={() => toggleCuisine(cat.name)}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          { color: isActive ? '#fff' : colors.text }
+                        ]}
+                      >
+                        {cat.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Sort By */}
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterLabel, { color: colors.textSub }]}>SORT BY</Text>
+              <View style={styles.chipContainer}>
+                {SORT_OPTIONS.map(option => {
+                  const isActive = localFilters.sortBy === option.id;
+                  return (
+                    <TouchableOpacity
+                      key={option.id}
+                      style={[
+                        styles.chip,
+                        {
+                          backgroundColor: isActive ? '#9139BA' : (isDark ? 'rgba(255,255,255,0.05)' : colors.background),
+                          borderColor: isActive ? '#9139BA' : colors.border,
+                        }
+                      ]}
+                      onPress={() => updateSort(option.id)}
+                    >
+                      <Ionicons name={option.icon} size={14} color={isActive ? '#fff' : colors.textSub} style={{ marginRight: 6 }} />
+                      <Text
+                        style={[
+                          styles.chipText,
+                          { color: isActive ? '#fff' : colors.text }
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </ScrollView>
 
           <View style={styles.modalFooter}>
             <TouchableOpacity onPress={onReset} style={styles.resetBtn}>
@@ -439,7 +577,14 @@ export default function HomeScreen() {
   // New State for Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
-  const [activeFilters, setActiveFilters] = useState({ cuisine: null, isOpen: false });
+  const [activeFilters, setActiveFilters] = useState({
+    cuisine: null,
+    isOpen: false,
+    dietaryType: null,
+    minPrice: null,
+    maxPrice: null,
+    sortBy: null
+  });
   const [filteredFoods, setFilteredFoods] = useState([]);
   const [filteredRestaurants, setFilteredRestaurants] = useState([]);
   const [isFiltered, setIsFiltered] = useState(false);
@@ -451,47 +596,35 @@ export default function HomeScreen() {
   const fetchData = async (query = '', filters = activeFilters) => {
     setLoading(true);
     try {
-      const hasFilters = query.trim() !== '' || filters.cuisine || filters.isOpen;
+      const hasFilters = query.trim() !== '' || filters.cuisine || filters.isOpen || filters.dietaryType || filters.minPrice || filters.maxPrice || filters.sortBy;
       setIsFiltered(hasFilters);
 
       if (hasFilters) {
         // Fetch Restaurants matching filters/query
         const restParams = {
           query: query,
-          cuisine: filters.cuisine,
-          isOpen: filters.isOpen
+          cuisineType: filters.cuisine,
+          isOpen: filters.isOpen,
+          sortBy: filters.sortBy
         };
+
+        // Use advanced search endpoint if we have filters
         const fetchedRestaurants = await restaurantService.getRestaurants(restParams);
         setFilteredRestaurants(fetchedRestaurants || []);
 
-        // Fetch Foods matching filters/query
+        // Fetch Foods matching filters/query with all new parameters
         const foodParams = {
-          query: query || (filters.cuisine ? filters.cuisine : ' '), // If only cuisine selected, strict filter might be tricky, but query helps. Or we can just search.
-          // Note: foodService.searchFoods uses /foods/search which expects 'query'. 
-          // If query is empty but cuisine is selected, we might want to query by cuisine name or rely on backend to handle empty query if we update it.
-          // Current backend implementation of /search: requires query or just regex matches. 
-          // If query is empty strings, regex matches everything.
-          isOpen: filters.isOpen
+          query: query,
+          isOpen: filters.isOpen,
+          dietaryType: filters.dietaryType,
+          minPrice: filters.minPrice,
+          maxPrice: filters.maxPrice,
+          category: filters.cuisine,
+          sortBy: filters.sortBy
         };
 
-        // Slightly hacky: passing cuisine as query if query is empty for food search
-        const foodQuery = query || filters.cuisine || '';
-        const fetchedFoods = await foodService.searchFoods(foodQuery); // Note: this calls /foods/search?query=...&isOpen=...
-
-        // If cuisine is selected, we should filter foods by category manually if backend doesn't support 'cuisine' param on /search
-        // Backend /search uses query against name. It DOES NOT filter by category yet unless we update it. 
-        // OPTIONAL FIXME: Update backend to support category on /search. 
-        // For now, let's filter client side if needed or assume query covers it.
-
-        let validFoods = fetchedFoods || [];
-        if (filters.cuisine) {
-          validFoods = validFoods.filter(f =>
-            f.category?.toLowerCase().includes(filters.cuisine.toLowerCase()) ||
-            f.description?.toLowerCase().includes(filters.cuisine.toLowerCase())
-          );
-        }
-
-        setFilteredFoods(validFoods);
+        const fetchedFoods = await foodService.searchFoods(foodParams);
+        setFilteredFoods(fetchedFoods || []);
 
       } else {
         // Default Load - Just Restaurants (Popular)
@@ -641,82 +774,116 @@ export default function HomeScreen() {
             )}
           </View>
         </FadeInView>
-
         {isFiltered ? (
-          <FadeInView delay={200}>
-            {/* Filtered Results View */}
-            {loading ? renderSkeleton() : (
-              <View>
-                {/* Matching Restaurants */}
-                {filteredRestaurants.length > 0 && (
-                  <View style={{ marginBottom: 24 }}>
-                    <View style={styles.sectionHeader}>
-                      <Text style={[styles.sectionTitle, { color: colors.text }]}>Matching Restaurants</Text>
-                    </View>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catScroll}>
-                      {filteredRestaurants.map(rest => (
-                        <View key={rest._id} style={{ width: width * 0.75, marginRight: 16 }}>
-                          <RestaurantCard
-                            item={{
-                              id: rest._id,
-                              name: rest.name,
-                              rating: rest.averageRating || 0,
-                              reviews: rest.totalReviews || 0,
-                              time: '25-35 min',
-                              deliveryFee: 'Free',
-                              tags: [rest.cuisineType || 'Restaurant'],
-                              image: rest.restaurantImage || rest.profileImage || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=800&auto=format&fit=crop',
-                              isOpen: rest.isOpen,
-                              promo: null,
-                            }}
-                            colors={colors}
-                            isDark={isDark}
-                            onPress={() => handleRestaurantPress(rest)}
-                            isFavorite={favorites.some(f => (f._id || f) === rest._id)}
-                            onFavoritePress={() => toggleFavorite(rest._id)}
-                          />
-                        </View>
-                      ))}
-                    </ScrollView>
-                  </View>
-                )}
-
-                {/* Matching Foods */}
-                {filteredFoods.length > 0 && (
-                  <View style={{ paddingHorizontal: 20 }}>
-                    <View style={[styles.sectionHeader, { paddingHorizontal: 0 }]}>
-                      <Text style={[styles.sectionTitle, { color: colors.text }]}>Matching Foods</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                      {filteredFoods.map(food => (
-                        <View key={food._id} style={{ width: '48%', marginBottom: 16 }}>
-                          <FoodCard
-                            food={{
-                              name: food.name,
-                              image: food.imageUrl,
-                              price: food.price,
-                              restaurantId: food.restaurantId,
-                              rating: 4.8,
-                              time: '20 min'
-                            }}
-                            onPress={() => handleFoodPress(food)}
-                          />
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                {filteredRestaurants.length === 0 && filteredFoods.length === 0 && (
-                  <View style={styles.emptyState}>
-                    <Ionicons name="search" size={48} color={colors.textSub} />
-                    <Text style={[styles.emptyText, { color: colors.textSub }]}>No results found</Text>
-                    <Text style={[styles.emptySubtext, { color: colors.textSub }]}>Try adjusting your filters or search query.</Text>
-                  </View>
-                )}
+          loading ? (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 100 }}>
+              <ActivityIndicator size="large" color="#9139BA" />
+              <Text style={{ marginTop: 16, color: colors.textSub, fontSize: 14 }}>Finding best matches...</Text>
+            </View>
+          ) : (
+            <FadeInView delay={200}>
+              {/* Results Count */}
+              <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+                <Text style={{ color: colors.textSub, fontSize: 13 }}>
+                  Found {filteredRestaurants.length} restaurants and {filteredFoods.length} items
+                </Text>
               </View>
-            )}
-          </FadeInView>
+
+              {/* Matching Restaurants */}
+              {filteredRestaurants.length > 0 && (
+                <View style={{ marginBottom: 24 }}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Matching Restaurants</Text>
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }}>
+                    {filteredRestaurants.map(rest => (
+                      <View key={rest._id} style={{ width: 280, marginRight: 16 }}>
+                        <RestaurantCard
+                          item={{
+                            id: rest._id,
+                            name: rest.name,
+                            rating: rest.averageRating || 0,
+                            reviews: rest.totalReviews || 0,
+                            time: '25-35 min',
+                            deliveryFee: 'Free',
+                            tags: [rest.cuisineType || 'Restaurant'],
+                            image: rest.restaurantImage || rest.profileImage || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=800&auto=format&fit=crop',
+                            isOpen: rest.isOpen,
+                            promo: null,
+                          }}
+                          colors={colors}
+                          isDark={isDark}
+                          onPress={() => handleRestaurantPress(rest)}
+                          isFavorite={favorites.some(f => (f._id || f) === rest._id)}
+                          onFavoritePress={() => toggleFavorite(rest._id)}
+                        />
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* Matching Foods */}
+              {filteredFoods.length > 0 && (
+                <View style={{ paddingHorizontal: 20 }}>
+                  <View style={[styles.sectionHeader, { paddingHorizontal: 0 }]}>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Matching Foods</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                    {filteredFoods.map(food => (
+                      <View key={food._id} style={{ width: '48%', marginBottom: 16 }}>
+                        <FoodCard
+                          food={{
+                            ...food, // Pass full food object for isAvailable check
+                            name: food.name,
+                            image: food.imageUrl,
+                            price: food.price,
+                            restaurantId: food.restaurantId,
+                            rating: 4.8,
+                            time: '20 min'
+                          }}
+                          onPress={() => handleFoodPress(food)}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {filteredRestaurants.length === 0 && filteredFoods.length === 0 && (
+                <View style={styles.emptyState}>
+                  <View style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 40,
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F3F4F6',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 16
+                  }}>
+                    <Ionicons name="search" size={40} color={colors.textSub} />
+                  </View>
+                  <Text style={[styles.emptyText, { color: colors.text }]}>No results found</Text>
+                  <Text style={[styles.emptySubtext, { color: colors.textSub }]}>
+                    We couldn't find any items or restaurants matching your filters.
+                  </Text>
+                  {/* Clear Filters Button */}
+                  <TouchableOpacity
+                    style={{
+                      marginTop: 24,
+                      backgroundColor: 'rgba(145, 57, 186, 0.1)',
+                      paddingHorizontal: 20,
+                      paddingVertical: 10,
+                      borderRadius: 20
+                    }}
+                    onPress={resetFilters}
+                  >
+                    <Text style={{ color: '#9139BA', fontWeight: '600' }}>Clear Filters</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </FadeInView>
+          )
         ) : (
           <>
             {/* Promotions Carousel */}
@@ -1319,6 +1486,21 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     marginHorizontal: 8,
+  },
+
+  // --- PRICE INPUTS ---
+  priceLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  priceInput: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    fontWeight: '600',
   },
 
 });
