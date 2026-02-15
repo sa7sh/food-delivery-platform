@@ -1,11 +1,12 @@
 # Treato - Food Delivery App
 
-A full-stack food delivery application with Customer App, Restaurant App and Backend.
+A full-stack food delivery application with Customer App, Restaurant App, Delivery Partner App and Backend.
 
 ## 📁 Project Structure
 
 - **frontend-Customer-App/** - React Native Expo app for customers
 - **frontend-Rest-App/** - React Native Expo app for restaurants
+- **DeliveryPartnerApp/** - React Native Expo app for delivery partners
 - **Backend/** - Node.js Express backend with MongoDB
 
 ## 🚀 Getting Started
@@ -32,6 +33,13 @@ npm install
 npx expo start
 ```
 
+### Delivery Partner App Setup
+```bash
+cd DeliveryPartnerApp
+npm install
+npx expo start
+```
+
 ## 🔧 Environment Variables
 
 ### Backend (.env)
@@ -54,6 +62,8 @@ export const API_BASE_URL = 'http://YOUR_IP:5000/api';
 - Base64 image support
 - User authentication
 - Cart management
+- Delivery partner order management
+- Real-time location tracking
 
 ## 📱 Tech Stack
 
