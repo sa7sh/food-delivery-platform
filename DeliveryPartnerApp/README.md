@@ -9,10 +9,11 @@ This project includes a centralized Node.js backend and three role-based React N
 
 FoodDeliveryPlatform
 │
-├── Backend # Node.js + Express + MongoDB API
-├── frontend-Customer-App # Customer mobile application
-├── Restaurant-app # Restaurant owner application
-└── DeliveryPartnerApp # Delivery partner application
+├── Backend                 # Node.js + Express + MongoDB API
+├── frontend-Customer-App   # Customer mobile application
+├── Restaurant-app          # Restaurant owner application
+└── DeliveryPartnerApp      # Delivery partner application
+
 
 
 ---
@@ -87,21 +88,28 @@ http://localhost:5000
 cd frontend-Customer-App
 npm install
 npm start
+
+
 Scan the QR code using Expo Go.
 
 3️⃣ Restaurant App
 cd Restaurant-app
 npm install
 npm start
+
+
 Scan the QR code using Expo Go.
 
 4️⃣ Delivery Partner App
 cd DeliveryPartnerApp
 npm install
 npm start
+
+
 Scan the QR code using Expo Go.
 
 🔥 Core Features
+
 JWT-based authentication
 
 Role-based access (Customer / Restaurant / Delivery)
@@ -119,6 +127,7 @@ Cart and checkout system
 Order lifecycle management
 
 🔐 Security
+
 Password hashing using bcrypt
 
 JWT token authorization
@@ -128,6 +137,7 @@ Protected API routes
 Environment-based configuration
 
 📌 Future Improvements
+
 Online payment gateway integration
 
 Admin dashboard
@@ -135,5 +145,6 @@ Admin dashboard
 Production deployment
 
 CI/CD pipeline
+
 
 
