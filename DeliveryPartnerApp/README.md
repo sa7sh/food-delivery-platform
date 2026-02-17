@@ -9,11 +9,10 @@ This project includes a centralized Node.js backend and three role-based React N
 
 FoodDeliveryPlatform
 │
-├── Backend                 # Node.js + Express + MongoDB API
-├── frontend-Customer-App   # Customer mobile application
-├── Restaurant-app          # Restaurant owner application
-└── DeliveryPartnerApp      # Delivery partner application
-
+├── Backend # Node.js + Express + MongoDB API
+├── frontend-Customer-App # Customer mobile application
+├── Restaurant-app # Restaurant owner application
+└── DeliveryPartnerApp # Delivery partner application
 
 
 ---
@@ -145,6 +144,7 @@ Admin dashboard
 Production deployment
 
 CI/CD pipeline
+
 
 
 
