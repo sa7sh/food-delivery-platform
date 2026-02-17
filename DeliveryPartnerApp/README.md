@@ -79,8 +79,10 @@ Start the backend:
 
 npm start
 Server runs at:
-
 http://localhost:5000
+
+```
+###
 2️⃣ Customer App
 cd frontend-Customer-App
 npm install
@@ -133,4 +135,5 @@ Admin dashboard
 Production deployment
 
 CI/CD pipeline
+
 
