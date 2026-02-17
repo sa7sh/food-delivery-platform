@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Switch,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,7 +32,11 @@ export default function AddAddressScreen() {
     pincode: '',
     landmark: '',
     isDefault: false,
+    latitude: null,
+    longitude: null,
   });
+
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
   const [errors, setErrors] = useState({});
 
@@ -84,6 +89,44 @@ export default function AddAddressScreen() {
     setFormData({ ...formData, label });
   };
 
+  const handleUseCurrentLocation = async () => {
+    setIsLoadingLocation(true);
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission to access location was denied');
+        setIsLoadingLocation(false);
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+
+      // Reverse Geocode
+      let addressResponse = await Location.reverseGeocodeAsync({ latitude, longitude });
+
+      if (addressResponse.length > 0) {
+        const addr = addressResponse[0];
+        console.log("Reverse Geocode:", addr);
+
+        setFormData(prev => ({
+          ...prev,
+          street: `${addr.name || ''} ${addr.street || ''}`.trim(),
+          city: addr.city || addr.subregion || '',
+          state: addr.region || '',
+          pincode: addr.postalCode || '',
+          latitude,
+          longitude
+        }));
+      }
+    } catch (error) {
+      console.log("Location Error:", error);
+      Alert.alert("Error", "Could not fetch location");
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={[styles.headerArea, { backgroundColor: colors.surface }]} edges={['top']}>
@@ -131,6 +174,22 @@ export default function AddAddressScreen() {
             ))}
           </View>
           {errors.label && <Text style={styles.errorText}>{errors.label}</Text>}
+
+          {/* Use Current Location Button */}
+          <TouchableOpacity
+            style={styles.locationButton}
+            onPress={handleUseCurrentLocation}
+            disabled={isLoadingLocation}
+          >
+            {isLoadingLocation ? (
+              <ActivityIndicator size="small" color="#9139BA" />
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="locate" size={20} color="#9139BA" style={{ marginRight: 8 }} />
+                <Text style={styles.locationButtonText}>Use Current Location</Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
           {/* Form Fields */}
           <View style={styles.formGroup}>
@@ -362,5 +421,21 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 18,
     fontWeight: '700',
+  },
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#9139BA',
+    borderRadius: 12,
+    marginBottom: 20,
+    backgroundColor: '#F3E5F5',
+  },
+  locationButtonText: {
+    color: '#9139BA',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

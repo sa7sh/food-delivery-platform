@@ -30,6 +30,8 @@ const userSchema = new mongoose.Schema(
         state: { type: String, required: true },
         pincode: { type: String, required: true },
         landmark: { type: String },
+        latitude: { type: Number },
+        longitude: { type: Number },
         isDefault: { type: Boolean, default: false },
       }
     ],
@@ -62,6 +64,20 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "user",
       enum: ["user", "admin", "customer", "restaurant"],
+    },
+    // OTP Fields
+    otp: {
+      type: String,
+      select: false, // Don't return by default
+    },
+    otpExpires: {
+      type: Date,
+      select: false,
+    },
+    otpAttempts: {
+      type: Number,
+      default: 0,
+      select: false,
     },
     favorites: [
       {

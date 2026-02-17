@@ -3,6 +3,7 @@ import Order from "../models/Order.js";
 import User from "../models/User.js";
 import FoodItem from "../models/FoodItem.js";
 import { protect } from "../middleware/authMiddleware.js";
+import { protectDelivery } from "../middleware/deliveryAuthMiddleware.js";
 
 const router = express.Router();
 console.log("--> Order Routes file loaded! <--");
@@ -227,6 +228,8 @@ router.get("/:id", protect, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
       .populate("restaurantId", "name profileImage restaurantImage")
+      .populate("customerId", "name phone")
+      .populate("deliveryPartnerId", "name phone")
       .populate({ path: "items.foodId", select: "image name" });
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
@@ -258,7 +261,7 @@ router.patch("/:id/status", protect, async (req, res) => {
       return res.status(404).json({ message: "Order not found or unauthorized" });
     }
 
-    const validStatuses = ["pending", "accepted", "preparing", "ready", "completed", "cancelled"];
+    const validStatuses = ["pending", "accepted", "preparing", "ready", "completed", "cancelled", "reached_restaurant"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
@@ -306,6 +309,142 @@ router.post("/:id/cancel", protect, async (req, res) => {
 
     order.status = "cancelled";
     await order.save();
+
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ==========================================
+// DELIVERY PARTNER ROUTES
+// ==========================================
+
+// Get Available Orders for Delivery (Status: Ready)
+router.get("/delivery/available", protectDelivery, async (req, res) => {
+  try {
+    // Ideally should be protected, but for now open or separate auth
+    const orders = await Order.find({ status: "ready" })
+      .populate("restaurantId", "name phone addresses")
+      .populate("customerId", "name phone addresses")
+      .sort({ createdAt: -1 });
+
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Accept Order (Delivery Partner)
+router.patch("/:id/delivery-accept", protectDelivery, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deliveryPartnerId = req.partner._id;
+
+    const order = await Order.findById(id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    if (order.status !== "ready") {
+      return res.status(400).json({ message: "Order is not ready for pickup" });
+    }
+
+    order.deliveryPartnerId = deliveryPartnerId;
+    // Status remains "ready" until picked up? Or "accepted_by_driver"? 
+    // User said "Order Picked" step.
+    // Let's keep it "ready" but assigned, or maybe "driver_assigned".
+    // For now, let's keep it "ready" or maybe "driver_assigned" if we want to lock it.
+    // But simplest flow: Driver accepts -> UI shows "Go to Restaurant".
+    // Then Driver clicks "Picked Up" -> Status "out_for_delivery".
+
+    // Let's just save the ID.
+    await order.save();
+
+    // Notify Restaurant
+    const io = req.app.get("socketio");
+    if (io) {
+      io.to(`restaurant_${order.restaurantId}`).emit("orderDeliveryAccepted", order);
+    }
+
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Reached Restaurant
+router.patch("/:id/delivery-reached", protectDelivery, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await Order.findById(id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    order.status = "reached_restaurant";
+    order.timeline.push({ status: "reached_restaurant", description: "Delivery partner reached restaurant" });
+    await order.save();
+
+    // Notify Restaurant
+    const io = req.app.get("socketio");
+    if (io) {
+      io.to(`restaurant_${order.restaurantId}`).emit("orderUpdated", order);
+    }
+
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Pick Up Order (Update to Out for Delivery)
+router.patch("/:id/delivery-pickup", protectDelivery, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await Order.findById(id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    order.status = "out_for_delivery";
+    order.timeline.push({ status: "out_for_delivery", description: "Picked up by delivery partner" });
+    await order.save();
+
+    // Notify Customer & Restaurant
+    const io = req.app.get("socketio");
+    if (io) {
+      if (order.customerId) {
+        io.to(`customer_${order.customerId}`).emit("orderStatusUpdated", {
+          orderId: order._id,
+          status: "out_for_delivery"
+        });
+      }
+      io.to(`restaurant_${order.restaurantId}`).emit("orderUpdated", order);
+    }
+
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Complete Delivery
+router.patch("/:id/delivery-complete", protectDelivery, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await Order.findById(id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    order.status = "completed";
+    order.timeline.push({ status: "completed", description: "Delivered to customer" });
+    await order.save();
+
+    // Notify Customer & Restaurant
+    const io = req.app.get("socketio");
+    if (io) {
+      if (order.customerId) {
+        io.to(`customer_${order.customerId}`).emit("orderStatusUpdated", {
+          orderId: order._id,
+          status: "completed"
+        });
+      }
+      io.to(`restaurant_${order.restaurantId}`).emit("orderUpdated", order);
+    }
 
     res.json(order);
   } catch (error) {

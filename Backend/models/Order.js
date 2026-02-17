@@ -12,6 +12,11 @@ const orderSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    deliveryPartnerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DeliveryPartner",
+      default: null,
+    },
     customer: {
       name: { type: String, required: true },
       phone: { type: String, required: false },
@@ -52,9 +57,16 @@ const orderSchema = new mongoose.Schema(
     }],
     status: {
       type: String,
-      enum: ["pending", "accepted", "preparing", "ready", "completed", "cancelled"],
+      enum: ["pending", "accepted", "preparing", "ready", "reached_restaurant", "order_picked", "out_for_delivery", "completed", "cancelled"],
       default: "pending",
     },
+    timeline: [
+      {
+        status: { type: String },
+        timestamp: { type: Date, default: Date.now },
+        description: { type: String },
+      }
+    ],
     createdAt: {
       type: Date,
       default: Date.now,

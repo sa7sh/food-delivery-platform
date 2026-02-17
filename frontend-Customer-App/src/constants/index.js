@@ -14,6 +14,7 @@ export const API_ENDPOINTS = {
   // Auth
   LOGIN: '/auth/login',
   REGISTER: '/auth/register',
+  SEND_OTP: '/auth/send-otp', // Added
   VERIFY_OTP: '/auth/verify-otp',
   FORGOT_PASSWORD: '/auth/forgot-password',
   DELETE_ACCOUNT: '/auth/delete-account',

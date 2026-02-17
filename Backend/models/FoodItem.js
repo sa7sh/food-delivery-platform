@@ -40,7 +40,7 @@ const foodItemSchema = new mongoose.Schema(
     isAvailable: {
       type: Boolean,
       default: true,
-    },
+    }, // Toggle for Sold Out
     isVeg: {
       type: Boolean,
       default: true,

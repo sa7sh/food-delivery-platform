@@ -16,10 +16,14 @@ export const authService = {
     return httpClient.post(API_ENDPOINTS.REGISTER, userData);
   },
 
+  // Send OTP
+  async sendOTP(email) {
+    return httpClient.post(API_ENDPOINTS.SEND_OTP, { email });
+  },
+
   // Verify OTP
   async verifyOTP(data) {
-    // data: { phone, otp }
-    // TODO: Replace with actual API call
+    // data: { email, otp }
     return httpClient.post(API_ENDPOINTS.VERIFY_OTP, data);
   },
 

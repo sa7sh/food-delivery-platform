@@ -281,6 +281,138 @@ router.post("/auth/logout", async (req, res) => {
   }
 });
 
+// ============================================
+// OTP AUTHENTICATION
+// ============================================
+import sendEmail from "../utils/sendEmail.js";
+
+// Send OTP
+router.post("/auth/send-otp", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    // Normalize email
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = Date.now() + 60 * 1000; // 1 minute
+
+    // Save to user (reset attempts)
+    user.otp = otp;
+    user.otpExpires = otpExpires;
+    user.otpAttempts = 0;
+    await user.save();
+
+    console.log(`[Backend] OTP for ${email}: ${otp}`); // For debugging (since we might not have real email)
+
+    // Send Email
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: "Your Login OTP",
+        message: `Your OTP is ${otp}. It expires in 1 minute.`,
+        html: `<p>Your OTP is <b>${otp}</b>. It expires in 1 minute.</p>`
+      });
+    } catch (emailError) {
+      console.error("Email send failed:", emailError);
+      return res.status(500).json({ message: "Failed to send email" });
+    }
+
+    res.json({ success: true, message: "OTP sent to email" });
+  } catch (error) {
+    console.error("Send OTP Error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Verify OTP & Login
+router.post("/auth/verify-otp", async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ message: "Email and OTP are required" });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check user explicitly selecting OTP fields
+    const user = await User.findOne({ email: normalizedEmail }).select("+otp +otpExpires +otpAttempts");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check attempts
+    if (user.otpAttempts >= 5) {
+      return res.status(429).json({ message: "Too many failed attempts. Please request a new OTP." });
+    }
+
+    // Check expiry
+    if (user.otpExpires < Date.now()) {
+      return res.status(400).json({ message: "OTP has expired" });
+    }
+
+    // Check OTP match
+    if (user.otp !== otp) {
+      user.otpAttempts += 1;
+      await user.save();
+      return res.status(400).json({ message: `Invalid OTP. ${5 - user.otpAttempts} attempts remaining.` });
+    }
+
+    // Valid OTP - Login Success
+    // Clear OTP
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    user.otpAttempts = 0;
+    await user.save();
+
+    // Generate Token (Same as login)
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET || "temp_secret",
+      { expiresIn: "1d" }
+    );
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        _id: user._id,
+        email: user.email,
+        name: user.name,
+        phone: user.phone,
+        role: user.role,
+        isOpen: user.isOpen,
+        restaurantImage: user.restaurantImage,
+        cuisineType: user.cuisineType,
+        address: user.addresses && user.addresses.length > 0 ? user.addresses[0].street : "",
+      },
+    });
+
+  } catch (error) {
+    console.error("Verify OTP Error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // DELETE ACCOUNT
 router.delete("/auth/delete-account", async (req, res) => {
   try {
@@ -897,6 +1029,52 @@ router.get("/public/search", async (req, res) => {
     res.json(results);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Public Search Endpoint
+router.get("/public/search", async (req, res) => {
+  try {
+    const { query, type, dietary, sortBy } = req.query;
+    if (!query) return res.json([]);
+
+    const regex = new RegExp(query, "i");
+    let results = [];
+
+    // Search Restaurants
+    if (!type || type === 'restaurant') {
+      const restaurants = await User.find({
+        role: "restaurant",
+        $or: [{ name: regex }, { cuisineType: regex }]
+      }).select("-password -otp -otpExpires -otpAttempts");
+
+      results = [...results, ...restaurants];
+    }
+
+    // Search Food Items
+    if (!type || type === 'food') {
+      const foodQuery = {
+        $or: [{ name: regex }, { description: regex }],
+        isAvailable: true
+      };
+
+      if (dietary === 'veg') {
+        foodQuery.isVeg = true;
+      }
+
+      const foods = await FoodItem.find(foodQuery).populate('restaurantId', 'name profileImage addresses');
+      results = [...results, ...foods];
+    }
+
+    // Basic Sorting
+    if (sortBy === 'rating') {
+      results.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
+    }
+
+    res.json(results);
+  } catch (error) {
+    console.error("Search Error:", error);
+    res.status(500).json({ message: "Search failed" });
   }
 });
 

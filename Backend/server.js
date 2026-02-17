@@ -9,6 +9,8 @@ import cookieParser from "cookie-parser";
 import apiRoutes from "./routes/apiRoutes.js";
 import foodRoutes from "./routes/foodRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
+import deliveryAppAuthRoutes from "./routes/deliveryAppAuthRoutes.js";
+import deliveryPartnerRoutes from "./routes/deliveryPartnerRoutes.js";
 
 // Load env variables
 dotenv.config();
@@ -102,6 +104,9 @@ app.use("/api", apiRoutes);
 // Auth routes (with limiter) - more specific path
 app.use("/api/auth", authLimiter, apiRoutes);
 
+// Delivery Partner Auth
+app.use(deliveryAppAuthRoutes);
+
 // Food routes (used by ALL apps)
 app.use("/api/foods", foodRoutes);
 
@@ -114,7 +119,11 @@ import reviewRoutes from "./routes/reviewRoutes.js";
 app.use("/api/reviews", reviewRoutes);
 
 // Analytics routes
+// Analytics routes
 app.use("/api/analytics", analyticsRoutes);
+
+// Driver / Delivery Partner Routes
+app.use("/api/driver", deliveryPartnerRoutes);
 
 // ===============================
 // 5️⃣ Test Routes

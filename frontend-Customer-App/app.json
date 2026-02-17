@@ -29,7 +29,8 @@
       },
       "package": "com.yourcompany.fooddelivery",
       "versionCode": 2,
-      "jsEngine": "hermes"
+      "jsEngine": "hermes",
+      "usesCleartextTraffic": true
     },
     "web": {
       "favicon": "./assets/favicon.png"

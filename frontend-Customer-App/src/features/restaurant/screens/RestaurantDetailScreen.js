@@ -367,13 +367,27 @@ export default function RestaurantDetailScreen({ route, navigation }) {
                     <TouchableOpacity
                       style={[
                         styles.plusButton,
-                        { backgroundColor: restaurantData.isOpen ? colors.primary[500] : colors.gray[400], borderColor: colors.surface }
+                        {
+                          backgroundColor: !restaurantData.isOpen || item.isAvailable === false
+                            ? colors.gray[400]
+                            : colors.primary[500],
+                          borderColor: colors.surface
+                        }
                       ]}
-                      disabled={!restaurantData.isOpen}
+                      disabled={!restaurantData.isOpen || item.isAvailable === false}
                       onPress={() => handleAddToCart(item)}
                     >
-                      <Ionicons name={restaurantData.isOpen ? "add" : "lock-closed"} size={20} color="#fff" />
+                      <Ionicons
+                        name={!restaurantData.isOpen || item.isAvailable === false ? "lock-closed" : "add"}
+                        size={20}
+                        color="#fff"
+                      />
                     </TouchableOpacity>
+                  )}
+                  {item.isAvailable === false && (
+                    <View style={styles.soldOutBadge}>
+                      <Text style={styles.soldOutText}>SOLD OUT</Text>
+                    </View>
                   )}
                 </View>
               </TouchableOpacity>
@@ -388,7 +402,7 @@ export default function RestaurantDetailScreen({ route, navigation }) {
 
           <View style={{ height: 120 }} />
         </ScrollView>
-      </View>
+      </View >
 
       {/* Bottom Cart Bar - Only show when cart has items */}
       {
@@ -430,7 +444,7 @@ export default function RestaurantDetailScreen({ route, navigation }) {
           </TouchableOpacity>
         </SafeAreaView>
       </View>
-    </View>
+    </View >
   );
 }
 
@@ -677,6 +691,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
+    zIndex: 10,
+  },
+  soldOutBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    zIndex: 5,
+  },
+  soldOutText: {
+    color: '#EF4444',
+    fontSize: 12,
+    fontWeight: '800',
+    transform: [{ rotate: '-15deg' }],
+    backgroundColor: '#fff',
+    paddingHorizontal: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#EF4444'
   },
   cartBarContainer: {
     position: 'absolute',
