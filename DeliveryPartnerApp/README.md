@@ -1,121 +1,100 @@
-🍔 Food Delivery Platform
-A full-stack food delivery ecosystem inspired by Swiggy/Zomato architecture.
+# 🍔 Food Delivery Platform  
+
+A full-stack food delivery ecosystem inspired by Swiggy/Zomato architecture.  
 This project consists of a centralized Node.js backend and three role-based React Native applications.
 
-🏗 System Architecture
+---
+
+## 🏗 Project Structure
+
 FoodDeliveryPlatform
 │
-├── Backend (Node.js + Express + MongoDB)
-├── frontend-Customer-App (React Native - Expo)
-├── Restaurant-app (React Native - Expo)
-└── DeliveryPartnerApp (React Native - Expo)
+├── Backend
+├── frontend-Customer-App
+├── Restaurant-app
+└── DeliveryPartnerApp
 
-🚀 Tech Stack
-Backend
-Node.js
-Express.js
-MongoDB / MongoDB Atlas
-JWT Authentication
-Socket.io (Real-time updates)
-Cloudinary (Image storage)
 
-Mobile Applications
-React Native (Expo)
-Axios (API integration)
-React Navigation
-Socket.io Client
-Maps & Geolocation APIs
+---
 
-📱 Applications Overview
+## 🚀 Tech Stack
 
-👤 Customer App
-Browse restaurants & menus
-Add to cart & place orders
-Live order tracking
-Search & filter functionality
-Authentication (JWT based)
-Rating & review system
+### Backend
+- Node.js
+- Express.js
+- MongoDB / MongoDB Atlas
+- JWT Authentication
+- Socket.io (Real-time updates)
+- Cloudinary (Image storage)
 
-🏪 Restaurant App
-Manage menu items
-Accept / reject orders
-Real-time order notifications
-View order history
+### Mobile Applications
+- React Native (Expo)
+- Axios
+- React Navigation
+- Socket.io Client
+- Maps & Geolocation APIs
 
-🛵 Delivery Partner App
-Accept delivery requests
-Live location tracking
-Update order status (Picked / Delivered)
-Navigation integration
+---
 
-⚙️ Installation & Setup
-1️⃣ Backend Setup
+## 📱 Applications Overview
+
+### 👤 Customer App
+- Browse restaurants and menus
+- Add to cart and place orders
+- Live order tracking
+- Search and filter functionality
+- Secure login/signup
+
+### 🏪 Restaurant App
+- Manage menu items
+- Accept / reject orders
+- Real-time order notifications
+- View order history
+
+### 🛵 Delivery Partner App
+- Accept delivery requests
+- Update order status (Picked / Delivered)
+- Live location tracking
+- Navigation integration
+
+---
+
+## ⚙️ Installation & Setup
+
+### Backend
+
+```bash
 cd Backend
 npm install
+Create a .env file:
 
-Create a .env file inside Backend:
 PORT=5000
 MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
+Start the server:
 
-Start the backend server:
 npm start
+Run Apps
+Customer App:
 
-Server runs on:
-http://localhost:5000
-
-2️⃣ Customer App
 cd frontend-Customer-App
 npm install
 npm start
-Scan QR code using Expo Go.
+Restaurant App:
 
-3️⃣ Restaurant App
 cd Restaurant-app
 npm install
 npm start
-Scan QR code using Expo Go.
+Delivery Partner App:
 
-4️⃣ Delivery Partner App
 cd DeliveryPartnerApp
 npm install
 npm start
-Scan QR code using Expo Go.
+🔐 Security
+JWT Authentication
 
-🔥 Core Features
-✅ JWT-based Authentication
-✅ Role-Based Access (Customer / Restaurant / Delivery)
-✅ Real-time Order Tracking (Socket.io)
-✅ Live Location Updates
-✅ Secure REST APIs
-✅ Image Upload via Cloudinary
-✅ Cart & Checkout Logic
-✅ Order Status Workflow
-✅ Admin-level Backend Controls
-
-📡 Real-Time Flow
-1. Customer places order
-2. Restaurant receives instant notification
-3. Restaurant accepts order
-4. Delivery partner gets request
-5. Live tracking updates customer
-6. All handled using Socket.io WebSockets.
-
-🔐 Security Features
 Password hashing (bcrypt)
-JWT token authentication
+
 Protected API routes
-Environment variable configuration
 
-📌 Future Improvements
-Online payment gateway integration
-Admin dashboard (Web)
-Production deployment (AWS / Render / Railway)
-CI/CD integration
-
-
-
-
+Environment variables for secrets
