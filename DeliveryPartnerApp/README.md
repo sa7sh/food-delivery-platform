@@ -1,7 +1,7 @@
-# 🍔 Food Delivery Platform  
+# 🍔 Food Delivery Platform
 
-A full-stack food delivery ecosystem inspired by Swiggy/Zomato architecture.  
-This project consists of a centralized Node.js backend and three role-based React Native applications.
+A full-stack food delivery ecosystem inspired by real-world platforms like Swiggy and Zomato.  
+This project includes a centralized Node.js backend and three role-based React Native mobile applications.
 
 ---
 
@@ -9,10 +9,10 @@ This project consists of a centralized Node.js backend and three role-based Reac
 
 FoodDeliveryPlatform
 │
-├── Backend
-├── frontend-Customer-App
-├── Restaurant-app
-└── DeliveryPartnerApp
+├── Backend # Node.js + Express + MongoDB API
+├── frontend-Customer-App # Customer mobile application
+├── Restaurant-app # Restaurant owner application
+└── DeliveryPartnerApp # Delivery partner application
 
 
 ---
@@ -44,6 +44,7 @@ FoodDeliveryPlatform
 - Live order tracking
 - Search and filter functionality
 - Secure login/signup
+- Ratings & reviews system
 
 ### 🏪 Restaurant App
 - Manage menu items
@@ -55,46 +56,81 @@ FoodDeliveryPlatform
 - Accept delivery requests
 - Update order status (Picked / Delivered)
 - Live location tracking
-- Navigation integration
+- Navigation support
 
 ---
 
 ## ⚙️ Installation & Setup
 
-### Backend
+### 1️⃣ Backend Setup
 
 ```bash
 cd Backend
 npm install
-Create a .env file:
+Create a .env file inside the Backend folder:
 
 PORT=5000
 MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret
-Start the server:
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+Start the backend:
 
 npm start
-Run Apps
-Customer App:
+Server runs at:
 
+http://localhost:5000
+2️⃣ Customer App
 cd frontend-Customer-App
 npm install
 npm start
-Restaurant App:
+Scan the QR code using Expo Go.
 
+3️⃣ Restaurant App
 cd Restaurant-app
 npm install
 npm start
-Delivery Partner App:
+Scan the QR code using Expo Go.
 
+4️⃣ Delivery Partner App
 cd DeliveryPartnerApp
 npm install
 npm start
-🔐 Security
-JWT Authentication
+Scan the QR code using Expo Go.
 
-Password hashing (bcrypt)
+🔥 Core Features
+JWT-based authentication
+
+Role-based access (Customer / Restaurant / Delivery)
+
+Real-time order tracking using Socket.io
+
+Live delivery location updates
+
+Secure REST APIs
+
+Image upload via Cloudinary
+
+Cart and checkout system
+
+Order lifecycle management
+
+🔐 Security
+Password hashing using bcrypt
+
+JWT token authorization
 
 Protected API routes
 
-Environment variables for secrets
+Environment-based configuration
+
+📌 Future Improvements
+Online payment gateway integration
+
+Admin dashboard
+
+Production deployment
+
+CI/CD pipeline
+
