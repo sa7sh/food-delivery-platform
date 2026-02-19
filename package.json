@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "frontend-Customer-App",
+    "Restaurant-app",
+    "DeliveryPartnerApp",
+    "Backend"
+  ]
+}

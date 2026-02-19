@@ -11,6 +11,9 @@ import foodRoutes from "./routes/foodRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import deliveryAppAuthRoutes from "./routes/deliveryAppAuthRoutes.js";
 import deliveryPartnerRoutes from "./routes/deliveryPartnerRoutes.js";
+import deliveryRatingRoutes from "./routes/deliveryRatingRoutes.js";
+import errorHandler from "./middleware/errorHandler.js";
+import { initSocketService } from "./services/socketService.js";
 
 // Load env variables
 dotenv.config();
@@ -19,6 +22,7 @@ dotenv.config();
 // ===============================
 import { createServer } from "http";
 import { Server } from "socket.io";
+import setupCronJobs from "./cronJobs.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -26,14 +30,23 @@ const httpServer = createServer(app);
 // Socket.io Setup
 const io = new Server(httpServer, {
   cors: {
-    origin: "*", // allow everyone for now
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    origin: "*", // Allow all origins for development
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true
   }
 });
 
-// Store io instance in app to use in routes
+// Store io instance in app to use in routes (backward compat for unmigrated handlers)
 app.set("socketio", io);
+
+// Initialize socket service — must happen before any route handler fires
+initSocketService(io);
+
+// Check DB Connection
+// checkDbConnection();
+
+// Start Scheduled Jobs
+setupCronJobs();
 
 // Socket Connection Handler
 io.on("connection", (socket) => {
@@ -49,6 +62,12 @@ io.on("connection", (socket) => {
   socket.on("joinCustomerRoom", (userId) => {
     socket.join(`customer_${userId}`);
     console.log(`Socket ${socket.id} joined customer_${userId}`);
+  });
+
+  // Join Delivery Room
+  socket.on("joinDeliveryRoom", () => {
+    socket.join("delivery_partners");
+    console.log(`Socket ${socket.id} joined delivery_partners`);
   });
 
   socket.on("disconnect", () => {
@@ -124,6 +143,7 @@ app.use("/api/analytics", analyticsRoutes);
 
 // Driver / Delivery Partner Routes
 app.use("/api/driver", deliveryPartnerRoutes);
+app.use("/api/delivery-rating", deliveryRatingRoutes);
 
 // ===============================
 // 5️⃣ Test Routes
@@ -139,14 +159,9 @@ app.get("/test", (req, res) => {
 // ===============================
 // 6️⃣ Global Error Handler
 // ===============================
-app.use((err, req, res, next) => {
-  if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
-    return res.status(400).json({ message: "Invalid JSON format" });
-  }
-
-  console.error(err.stack);
-  res.status(500).json({ message: "Internal Server Error" });
-});
+// Must be registered AFTER all routes. Handles AppError, Mongoose errors,
+// JWT errors, and JSON parse errors with a consistent { success, message } shape.
+app.use(errorHandler);
 
 // ===============================
 // 7️⃣ Database Connection

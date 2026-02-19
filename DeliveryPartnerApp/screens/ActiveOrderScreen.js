@@ -5,12 +5,15 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
 import axios from 'axios'; // Import axios
 
+import { API_URL } from '../constants/Config';
+
 const { width, height } = Dimensions.get('window');
-const API_BASE = "http://192.168.29.148:5000/api";
+const API_BASE = API_URL;
 const ORDER_URL = `${API_BASE}/orders`;
 
 export default function ActiveOrderScreen({ navigation, route }) {
   const { orderId } = route.params || {}; // Get orderId from params
+  const [order, setOrder] = useState(null); // Store full order details
   const [status, setStatus] = useState('ACCEPTED'); // Initial status when accepted
   const [timeLeft, setTimeLeft] = useState(60); // 60s timer
   const [loading, setLoading] = useState(false);
@@ -20,22 +23,6 @@ export default function ActiveOrderScreen({ navigation, route }) {
 
   useEffect(() => {
     fetchOrderDetails();
-
-    // Start countdown if status is ACCEPTED
-    if (status === 'ACCEPTED') {
-      timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current);
-            handleAutoCancel();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-
-    return () => clearInterval(timerRef.current);
   }, [status]);
 
   const fetchOrderDetails = async () => {
@@ -45,8 +32,10 @@ export default function ActiveOrderScreen({ navigation, route }) {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      const order = response.data;
-      if (order.status === 'reached_restaurant') {
+      const orderData = response.data;
+      setOrder(orderData);
+
+      if (orderData.status === 'reached_restaurant') {
         setStatus('REACHED');
         clearInterval(timerRef.current);
       } else if (order.status === 'out_for_delivery') {
@@ -140,19 +129,35 @@ export default function ActiveOrderScreen({ navigation, route }) {
   return (
     <View style={styles.container}>
       {/* 1. THE MAP VIEW */}
+      {/* 1. THE MAP VIEW */}
       <MapView
         style={styles.map}
         initialRegion={{
-          latitude: 19.0760,
-          longitude: 72.8777,
-          latitudeDelta: 0.015,
-          longitudeDelta: 0.015,
+          latitude: order?.deliveryLocation?.latitude || 19.0760,
+          longitude: order?.deliveryLocation?.longitude || 72.8777,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
         }}
       >
-        <Marker coordinate={{ latitude: 19.0760, longitude: 72.8777 }}>
+        {/* Restaurant Marker */}
+        <Marker
+          coordinate={{
+            latitude: order?.restaurantId?.addresses?.[0]?.latitude || 19.0760,
+            longitude: order?.restaurantId?.addresses?.[0]?.longitude || 72.8777
+          }}
+          title={order?.restaurantId?.name || "Restaurant"}
+        >
           <MaterialCommunityIcons name="store" size={35} color="#9139BA" />
         </Marker>
-        <Marker coordinate={{ latitude: 19.0820, longitude: 72.8820 }}>
+
+        {/* Customer Marker */}
+        <Marker
+          coordinate={{
+            latitude: order?.deliveryLocation?.latitude || 19.0820,
+            longitude: order?.deliveryLocation?.longitude || 72.8820
+          }}
+          title={order?.customer?.name || "Customer"}
+        >
           <MaterialCommunityIcons name="map-marker-radius" size={35} color="#2ecc71" />
         </Marker>
       </MapView>
@@ -165,11 +170,6 @@ export default function ActiveOrderScreen({ navigation, route }) {
           <Text style={styles.statusBadge}>
             {status === 'ACCEPTED' ? 'RUSH TO RESTAURANT' : status === 'REACHED' ? 'PICK UP ORDER' : 'DELIVERING ORDER'}
           </Text>
-          {status === 'ACCEPTED' && (
-            <Text style={[styles.timerText, { color: timeLeft < 10 ? 'red' : 'black' }]}>
-              {timeLeft}s remaining
-            </Text>
-          )}
         </View>
 
         <View style={styles.addressBox}>
@@ -180,11 +180,13 @@ export default function ActiveOrderScreen({ navigation, route }) {
           </View>
 
           <View style={styles.textColumn}>
-            <Text style={styles.locationTitle}>The Burger Club</Text>
-            <Text style={styles.locationSub}>Sector 5, Market Area</Text>
+            <Text style={styles.locationTitle}>{order?.restaurantId?.name || "Restaurant"}</Text>
+            <Text style={styles.locationSub}>
+              {order?.restaurantId?.addresses?.[0]?.street || order?.restaurantId?.addresses?.[0]?.city || "Location N/A"}
+            </Text>
             <View style={{ height: 25 }} />
-            <Text style={styles.locationTitle}>Rahul Sharma</Text>
-            <Text style={styles.locationSub}>Apt 402, Green Valley Apartments</Text>
+            <Text style={styles.locationTitle}>{order?.customer?.name || "Customer"}</Text>
+            <Text style={styles.locationSub}>{order?.deliveryAddress || "Delivery Address N/A"}</Text>
           </View>
         </View>
 

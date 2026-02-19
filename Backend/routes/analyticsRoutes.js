@@ -64,6 +64,8 @@ router.get("/stats", protect, async (req, res) => {
     }
 
     res.json({
+      averageRating: req.user.averageRating || 0,
+      totalReviews: req.user.totalReviews || 0,
       totalRevenue,
       todayRevenue,
       todayOrdersCount: todayOrders.length,

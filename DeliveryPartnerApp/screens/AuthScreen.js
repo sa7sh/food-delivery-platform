@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import {
   StyleSheet, View, Text, TextInput, TouchableOpacity,
-  ScrollView, KeyboardAvoidingView, Platform, Dimensions, ActivityIndicator, Alert
+  ScrollView, KeyboardAvoidingView, Platform, Dimensions, ActivityIndicator, Alert, Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useDeliveryAuthStore } from '../store/authStore';
+import { API_URL } from '../constants/Config';
 
 const { width } = Dimensions.get('window');
-const API_URL = "http://192.168.29.148:5000/api/auth/delivery";
+// API_URL is now imported
+const AUTH_URL = `${API_URL}/auth/delivery`;
 
 // --- EXTERNAL COMPONENTS (Prevents keyboard focus loss on re-render) ---
 
@@ -64,12 +66,15 @@ const UploadCard = ({ label, field, icon, subtext, imageUri, onPick }) => (
 // --- MAIN AUTH SCREEN ---
 
 export default function AuthScreen({ navigation }) {
+  const login = useDeliveryAuthStore((s) => s.login);
   const [isLogin, setIsLogin] = useState(true);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
+  const [loginMethod, setLoginMethod] = useState('phone'); // 'phone' or 'email'
+
   const [formData, setFormData] = useState({
-    name: '', phone: '', vehicle: '',
+    name: '', phone: '', email: '', password: '', vehicle: '',
     aadhaar: '', pan: '',
     bankName: '', accountNum: '', ifsc: '',
     aadhaarImage: null, panImage: null, rcImage: null
@@ -100,6 +105,8 @@ export default function AuthScreen({ navigation }) {
       // EXPLICIT MAPPING: This ensures the backend gets the keys it expects
       data.append('name', formData.name);
       data.append('phone', formData.phone);
+      if (formData.email) data.append('email', formData.email);
+      if (formData.password) data.append('password', formData.password);
       data.append('vehicle', formData.vehicle);
       data.append('aadhaarNumber', formData.aadhaar);
       data.append('panNumber', formData.pan); // Matches backend req.body.panNumber
@@ -130,7 +137,7 @@ export default function AuthScreen({ navigation }) {
         });
       }
 
-      const response = await fetch(`${API_URL}/register`, {
+      const response = await fetch(`${AUTH_URL}/register`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -141,10 +148,8 @@ export default function AuthScreen({ navigation }) {
 
       const result = await response.json();
       if (result.success) {
-        // Save Token & Partner Info
-        await AsyncStorage.setItem('deliveryToken', result.token);
-        await AsyncStorage.setItem('deliveryPartner', JSON.stringify(result.partner));
-
+        // Persist auth state via Zustand store (handles AsyncStorage automatically)
+        login(result.token, result.partner);
         setStep(4);
       } else {
         Alert.alert("Registration Failed", result.message || "Please check your details");
@@ -158,22 +163,26 @@ export default function AuthScreen({ navigation }) {
   };
 
   const handleLogin = async () => {
-    if (!formData.phone) {
-      Alert.alert("Error", "Please enter phone number");
-      return;
+    let payload = {};
+    if (loginMethod === 'phone') {
+      if (!formData.phone) return Alert.alert("Error", "Please enter phone number");
+      payload = { phone: formData.phone };
+    } else {
+      if (!formData.email || !formData.password) return Alert.alert("Error", "Please enter email and password");
+      payload = { email: formData.email, password: formData.password };
     }
+
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/login`, {
+      const response = await fetch(`${AUTH_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: formData.phone })
+        body: JSON.stringify(payload)
       });
       const result = await response.json();
 
       if (result.success) {
-        await AsyncStorage.setItem('deliveryToken', result.token);
-        await AsyncStorage.setItem('deliveryPartner', JSON.stringify(result.partner));
+        login(result.token, result.partner);
         navigation.replace('Main');
       } else {
         Alert.alert("Login Failed", result.message);
@@ -199,14 +208,11 @@ export default function AuthScreen({ navigation }) {
 
           <View style={styles.header}>
             <View style={styles.headerTop}>
-
-              <View style={styles.logoRow}>
-                <View style={styles.logoBox}>
-                  <MaterialCommunityIcons name="lightning-bolt" size={32} color="#fff" />
-                </View>
-                <Text style={styles.logoText}>TREATO</Text>
-              </View>
-              <View style={{ width: 40 }} />
+              <Image
+                source={require('../assets/logo.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
             {!isLogin && step < 4 && <ProgressBar step={step} />}
           </View>
@@ -215,7 +221,32 @@ export default function AuthScreen({ navigation }) {
             <View style={styles.card}>
               <Text style={styles.stepTitle}>Welcome Back</Text>
               <Text style={styles.stepSub}>Sign in to your partner dashboard</Text>
-              <FormInput label="Phone Number" icon="phone-outline" placeholder="+91 00000 00000" keyboardType="phone-pad" value={formData.phone} field="phone" updateField={updateField} />
+
+              {/* Login Method Toggle */}
+              <View style={styles.toggleRow}>
+                <TouchableOpacity
+                  style={[styles.toggleBtn, loginMethod === 'phone' && styles.toggleBtnActive]}
+                  onPress={() => setLoginMethod('phone')}
+                >
+                  <Text style={[styles.toggleText, loginMethod === 'phone' && styles.toggleTextActive]}>Phone</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toggleBtn, loginMethod === 'email' && styles.toggleBtnActive]}
+                  onPress={() => setLoginMethod('email')}
+                >
+                  <Text style={[styles.toggleText, loginMethod === 'email' && styles.toggleTextActive]}>Email</Text>
+                </TouchableOpacity>
+              </View>
+
+              {loginMethod === 'phone' ? (
+                <FormInput label="Phone Number" icon="phone-outline" placeholder="+91 00000 00000" keyboardType="phone-pad" value={formData.phone} field="phone" updateField={updateField} />
+              ) : (
+                <>
+                  <FormInput label="Email Address" icon="email-outline" placeholder="name@example.com" keyboardType="email-address" value={formData.email} field="email" updateField={updateField} />
+                  <FormInput label="Password" icon="lock-outline" placeholder="Enter password" value={formData.password} field="password" updateField={updateField} />
+                </>
+              )}
+
               <TouchableOpacity style={styles.primaryBtn} onPress={handleLogin}>
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Log In</Text>}
               </TouchableOpacity>
@@ -228,6 +259,8 @@ export default function AuthScreen({ navigation }) {
                   <Text style={styles.stepSub}>Basic info for your account</Text>
                   <FormInput label="Full Name" icon="account-tie-outline" placeholder="Enter full name" value={formData.name} field="name" updateField={updateField} />
                   <FormInput label="Phone" icon="phone-outline" placeholder="Mobile number" keyboardType="phone-pad" value={formData.phone} field="phone" updateField={updateField} />
+                  <FormInput label="Email" icon="email-outline" placeholder="Email Address" keyboardType="email-address" value={formData.email} field="email" updateField={updateField} />
+                  <FormInput label="Password" icon="lock-outline" placeholder="Create Password" value={formData.password} field="password" updateField={updateField} />
                   <FormInput label="Vehicle" icon="moped-outline" placeholder="e.g. Activa 6G" value={formData.vehicle} field="vehicle" updateField={updateField} />
                   <TouchableOpacity style={styles.primaryBtn} onPress={() => setStep(2)}>
                     <Text style={styles.primaryBtnText}>Continue</Text>
@@ -324,11 +357,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center'
   },
-  logoText: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#1A1A1A',
-    marginLeft: 12,
+  logoImage: {
+    width: 180,
+    height: 120,
   },
   backBtn: { padding: 8, borderRadius: 12, backgroundColor: '#f5f0fa' },
   progressContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 25 },
@@ -364,5 +395,10 @@ const styles = StyleSheet.create({
   pendingTitle: { fontSize: 28, fontWeight: '900', color: '#1A1A1A' },
   pendingDescription: { textAlign: 'center', color: '#7f8c8d', paddingHorizontal: 30, marginTop: 10, lineHeight: 22 },
   doneBtn: { width: '100%', backgroundColor: '#1A1A1A', height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginTop: 40 },
-  doneBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' }
+  doneBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  toggleRow: { flexDirection: 'row', backgroundColor: '#f5f0fa', borderRadius: 12, padding: 4, marginBottom: 20 },
+  toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
+  toggleBtnActive: { backgroundColor: '#fff', elevation: 2 },
+  toggleText: { fontWeight: '700', color: '#95a5a6' },
+  toggleTextActive: { color: '#9139BA' }
 });

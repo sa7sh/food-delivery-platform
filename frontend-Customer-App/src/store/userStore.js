@@ -109,7 +109,7 @@ export const useUserStore = create((set, get) => ({
       await userService.updateAddress(addressId, addressData);
 
       const addresses = get().addresses.map((addr) =>
-        addr.id === addressId ? { ...addr, ...addressData } : addr
+        (addr._id || addr.id) === addressId ? { ...addr, ...addressData } : addr
       );
 
       set({
@@ -131,12 +131,12 @@ export const useUserStore = create((set, get) => ({
 
       await userService.deleteAddress(addressId);
 
-      const addresses = get().addresses.filter((addr) => addr.id !== addressId);
+      const addresses = get().addresses.filter((addr) => (addr._id || addr.id) !== addressId);
 
       set({
         addresses,
         selectedAddress:
-          get().selectedAddress?.id === addressId
+          (get().selectedAddress?._id || get().selectedAddress?.id) === addressId
             ? addresses[0]
             : get().selectedAddress,
         isLoading: false,

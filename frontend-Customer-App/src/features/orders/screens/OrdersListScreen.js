@@ -12,7 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { ROUTES, ORDER_STATUS } from '../../../constants';
+import { ROUTES } from '../../../constants';
+import { ONGOING_STATUSES, FINISHED_STATUSES } from '@treato/shared/constants/orderStatuses';
 import { useOrdersStore, useCartStore } from '../../../store';
 import { useTheme } from '../../../hooks/useTheme';
 
@@ -74,9 +75,10 @@ export default function OrdersListScreen() {
   const getFilteredOrders = () => {
     if (selectedFilter === 'all') return orders;
     if (selectedFilter === 'ongoing') {
-      return orders.filter(o => o.status !== ORDER_STATUS.DELIVERED && o.status !== ORDER_STATUS.CANCELLED);
+      return orders.filter(o => ONGOING_STATUSES.has(o.status));
     }
-    return orders.filter(o => o.status === ORDER_STATUS.DELIVERED);
+    // 'completed' tab shows both completed and cancelled
+    return orders.filter(o => FINISHED_STATUSES.has(o.status));
   };
 
   const renderEmpty = () => (

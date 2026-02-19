@@ -4,6 +4,11 @@ import User from "../models/User.js";
 import FoodItem from "../models/FoodItem.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { protectDelivery } from "../middleware/deliveryAuthMiddleware.js";
+import { DELIVERY_FEE_PER_ORDER } from "../../packages/treato-shared/constants/fees.js";
+import { AppError } from "../utils/AppError.js";
+import { validate } from "../middleware/validate.js";
+import { placeOrderSchema, updateOrderStatusSchema } from "../validators/orderValidators.js";
+import * as orderController from "../controllers/orderController.js";
 
 const router = express.Router();
 console.log("--> Order Routes file loaded! <--");
@@ -52,106 +57,8 @@ router.delete("/:id", protect, async (req, res) => {
 });
 
 // Place Order (Customer)
-router.post("/", protect, async (req, res) => {
-  try {
-    const { restaurantId, items, deliveryAddress, paymentMethod, totalAmount } = req.body;
-
-    console.log("--------------------------------------------------");
-    console.log("CREATE ORDER REQUEST RECEIVED");
-    console.log("RestaurantID:", restaurantId);
-    console.log("Items:", JSON.stringify(items, null, 2));
-    console.log("Total Amount:", totalAmount);
-    console.log("Payment Method:", paymentMethod);
-    console.log("User:", req.user._id);
-    console.log("--------------------------------------------------");
-
-    // Validation
-    if (!restaurantId || !items || items.length === 0 || !deliveryAddress || !totalAmount) {
-      console.log("ERROR: Missing required fields");
-      return res.status(400).json({ message: "Missing required order fields" });
-    }
-
-    // Verify Restaurant exists and has valid role
-    const restaurant = await User.findById(restaurantId);
-    if (!restaurant) {
-      console.log("ERROR: Restaurant not found:", restaurantId);
-      return res.status(404).json({ message: "Restaurant not found" });
-    }
-    if (!['user', 'restaurant'].includes(restaurant.role)) {
-      console.log("ERROR: Invalid restaurant role:", restaurant.role);
-      return res.status(400).json({ message: "Invalid restaurant account" });
-    }
-
-    // Check if restaurant is accepting orders
-    if (!restaurant.isOpen) {
-      console.log("ERROR: Restaurant is closed:", restaurantId);
-      return res.status(400).json({ message: "Restaurant is currently closed and not accepting orders." });
-    }
-
-    // Validate prices server-side to prevent manipulation
-    const foodIds = items.map(item => item.foodId).filter(Boolean);
-    if (foodIds.length > 0) {
-      const foodItems = await FoodItem.find({ _id: { $in: foodIds } });
-
-      let calculatedTotal = 0;
-      for (const item of items) {
-        if (item.foodId) {
-          const foodItem = foodItems.find(f => f._id.toString() === item.foodId.toString());
-          if (foodItem) {
-            calculatedTotal += foodItem.price * item.quantity;
-          } else {
-            console.log("WARNING: Food item not found for ID:", item.foodId);
-          }
-        }
-      }
-
-      console.log(`Price Check: Client Total: ${totalAmount}, Server Calc (Items only): ${calculatedTotal}`);
-
-      // WARNING: This validation fails because client sends Total (w/ Tax+Delivery) 
-      // but server currently only calculates Item Subtotal.
-      // Disabling strict check for now to allow orders.
-      if (calculatedTotal > 0 && Math.abs(calculatedTotal - totalAmount) > 0.01) {
-        console.log("WARNING: Price mismatch detected (likely due to taxes/delivery fees). Proceeding anyway.");
-        // Should implement proper server-side tax/delivery calculation later
-      }
-    }
-
-    // Create Order
-    console.log("Creating new order document...");
-
-    const orderPayload = {
-      restaurantId,
-      customerId: req.user._id,
-      customer: {
-        name: req.user.name,
-        phone: req.user.phone || "",
-      },
-      deliveryAddress,
-      items,
-      totalAmount,
-      paymentMethod: paymentMethod || "COD",
-      status: "pending",
-    };
-
-    console.log("Order Payload:", JSON.stringify(orderPayload, null, 2));
-
-    const newOrder = await Order.create(orderPayload);
-
-    console.log("Order created successfully:", newOrder._id);
-
-    // 🔔 REAL-TIME NOTIFICATION: Emit to Restaurant Room
-    const io = req.app.get("socketio");
-    if (io) {
-      io.to(`restaurant_${restaurantId}`).emit("newOrder", newOrder);
-      console.log(`[Socket] Emitted 'newOrder' to restaurant_${restaurantId}`);
-    }
-
-    res.status(201).json(newOrder);
-  } catch (error) {
-    console.error("CRITICAL ORDER ERROR:", error);
-    res.status(500).json({ message: error.message, stack: error.stack });
-  }
-});
+// Business logic lives in orderService.placeOrder() — controller is a thin wrapper.
+router.post("/", protect, validate(placeOrderSchema), orderController.placeOrder);
 
 // Get Customer Orders
 router.get("/my-orders", protect, async (req, res) => {
@@ -174,6 +81,34 @@ router.get("/my-orders", protect, async (req, res) => {
         .lean(),
       Order.countDocuments({ customerId: req.user._id })
     ]);
+
+    // Sanitize orders to remove large Base64 images
+    orders.forEach(order => {
+      // Sanitize Restaurant Images
+      if (order.restaurantId) {
+        if (order.restaurantId.restaurantImage && order.restaurantId.restaurantImage.startsWith('data:image') && order.restaurantId.restaurantImage.length > 500) {
+          order.restaurantId.restaurantImage = null; // Or placeholder
+        }
+        if (order.restaurantId.profileImage && order.restaurantId.profileImage.startsWith('data:image') && order.restaurantId.profileImage.length > 500) {
+          order.restaurantId.profileImage = null;
+        }
+      }
+
+      // Sanitize Food Item Images
+      if (order.items && order.items.length > 0) {
+        order.items.forEach(item => {
+          if (item.foodId) {
+            if (item.foodId.image && item.foodId.image.startsWith('data:image') && item.foodId.image.length > 500) {
+              item.foodId.image = null;
+            }
+          }
+          // Also check item snapshot image if exists
+          if (item.image && item.image.startsWith('data:image') && item.image.length > 500) {
+            item.image = null;
+          }
+        });
+      }
+    });
 
     res.json({
       orders,
@@ -236,7 +171,8 @@ router.get("/:id", protect, async (req, res) => {
     }
 
     // Authorization check: User must be either the customer OR the restaurant
-    const isCustomer = order.customerId && order.customerId.toString() === req.user._id.toString();
+    // After populate(), customerId and restaurantId are objects, so we must use ._id
+    const isCustomer = order.customerId && order.customerId._id.toString() === req.user._id.toString();
     const isRestaurant = order.restaurantId._id.toString() === req.user._id.toString();
 
     if (!isCustomer && !isRestaurant) {
@@ -283,6 +219,12 @@ router.patch("/:id/status", protect, async (req, res) => {
 
       // Also Notify Restaurant (in case they have multiple devices)
       io.to(`restaurant_${req.user._id}`).emit("orderUpdated", order);
+
+      // Notify Delivery Partners if order is ready
+      if (status === 'ready') {
+        io.to('delivery_partners').emit('newAvailableOrder', order);
+        console.log(`[Socket] Emitted 'newAvailableOrder' to delivery_partners`);
+      }
     }
 
     res.json(order);
@@ -323,13 +265,74 @@ router.post("/:id/cancel", protect, async (req, res) => {
 // Get Available Orders for Delivery (Status: Ready)
 router.get("/delivery/available", protectDelivery, async (req, res) => {
   try {
+    console.log("[OrderRoutes] GET /delivery/available hit");
     // Ideally should be protected, but for now open or separate auth
-    const orders = await Order.find({ status: "ready" })
+    const orders = await Order.find({
+      status: "ready",
+      deliveryPartnerId: null
+    })
       .populate("restaurantId", "name phone addresses")
       .populate("customerId", "name phone addresses")
       .sort({ createdAt: -1 });
 
+    console.log(`[OrderRoutes] Found ${orders.length} available orders for delivery`);
     res.json(orders);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get Earnings for Delivery Partner
+router.get("/delivery/my-earnings", protectDelivery, async (req, res) => {
+  try {
+    const partnerId = req.partner._id;
+    const DELIVERY_FEE = DELIVERY_FEE_PER_ORDER; // from @treato/shared
+
+    const completedOrders = await Order.find({
+      deliveryPartnerId: partnerId,
+      status: "completed",
+    })
+      .populate("restaurantId", "name")
+      .sort({ updatedAt: -1 });
+
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(startOfToday);
+    startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
+
+    let totalEarnings = 0;
+    let todayEarnings = 0;
+    let weekEarnings = 0;
+
+    // Daily breakdown for last 7 days
+    const dailyMap = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(startOfToday);
+      d.setDate(d.getDate() - i);
+      const key = d.toLocaleDateString('en-US', { weekday: 'short' });
+      dailyMap[key] = 0;
+    }
+
+    completedOrders.forEach(order => {
+      totalEarnings += DELIVERY_FEE;
+      const completedAt = new Date(order.updatedAt);
+      if (completedAt >= startOfToday) todayEarnings += DELIVERY_FEE;
+      if (completedAt >= startOfWeek) weekEarnings += DELIVERY_FEE;
+      const dayKey = completedAt.toLocaleDateString('en-US', { weekday: 'short' });
+      if (dayKey in dailyMap) dailyMap[dayKey] += DELIVERY_FEE;
+    });
+
+    const weeklyData = Object.entries(dailyMap).map(([day, amount]) => ({ day, amount }));
+
+    const transactions = completedOrders.slice(0, 20).map(order => ({
+      id: order._id,
+      store: order.restaurantId?.name || 'Restaurant',
+      time: new Date(order.updatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+      date: new Date(order.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+      amount: DELIVERY_FEE.toFixed(2),
+    }));
+
+    res.json({ totalEarnings, todayEarnings, weekEarnings, weeklyData, transactions });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -141,6 +141,16 @@ const DashboardScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.statCard}>
+              <View style={[styles.iconContainer, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="star" size={24} color="#D97706" />
+              </View>
+              <View>
+                <Text style={styles.statLabel}>Rating</Text>
+                <Text style={styles.statValue}>{analytics?.averageRating ? parseFloat(analytics.averageRating).toFixed(1) : 'New'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.statCard}>
               <View style={[styles.iconContainer, { backgroundColor: '#E0F2FE' }]}>
                 <Ionicons name="receipt" size={24} color="#0EA5E9" />
               </View>

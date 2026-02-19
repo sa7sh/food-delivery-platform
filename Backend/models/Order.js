@@ -25,6 +25,10 @@ const orderSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    deliveryLocation: {
+      latitude: { type: Number },
+      longitude: { type: Number },
+    },
     items: [
       {
         foodId: { type: mongoose.Schema.Types.ObjectId, ref: "FoodItem" }, // Optional link
@@ -55,6 +59,10 @@ const orderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "FoodItem",
     }],
+    deliveryReviewed: {
+      type: Boolean,
+      default: false,
+    },
     status: {
       type: String,
       enum: ["pending", "accepted", "preparing", "ready", "reached_restaurant", "order_picked", "out_for_delivery", "completed", "cancelled"],

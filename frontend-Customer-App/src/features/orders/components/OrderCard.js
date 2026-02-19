@@ -29,14 +29,18 @@ export default function OrderCard({ order, onPress, onReorder }) {
         return { text: 'Confirmed', color: '#3B82F6', bg: '#DBEAFE' }; // Blue
       case ORDER_STATUS.PREPARING:
         return { text: 'Preparing', color: '#8B5CF6', bg: '#EDE9FE' }; // Violet
-      case ORDER_STATUS.OUT_FOR_DELIVERY:
+      case ORDER_STATUS.READY:
       case 'READY':
-        return { text: 'Out for Delivery', color: '#10B981', bg: '#D1FAE5' }; // Emerald
+        return { text: 'Order Ready', color: '#10B981', bg: '#D1FAE5' }; // Emerald
+      case ORDER_STATUS.OUT_FOR_DELIVERY:
+        return { text: 'Out for Delivery', color: '#F59E0B', bg: '#FEF3C7' }; // Amber/Orange for transit? Or keep Green?
       case ORDER_STATUS.DELIVERED:
       case 'COMPLETED':
         return { text: 'Delivered', color: '#6B7280', bg: '#F3F4F6' }; // Gray
       case ORDER_STATUS.CANCELLED:
         return { text: 'Cancelled', color: '#EF4444', bg: '#FEE2E2' }; // Red
+      case 'REACHED_RESTAURANT':
+        return { text: 'Reached Restaurant', color: '#0D9488', bg: '#CCFBF1' }; // Teal
       default:
         return { text: status || 'Unknown', color: colors.textSub, bg: colors.surfaceHighlight };
     }
@@ -143,13 +147,22 @@ export default function OrderCard({ order, onPress, onReorder }) {
 
         {/* Reorder Button (Only if delivered) */}
         {status === ORDER_STATUS.DELIVERED && (
-          <TouchableOpacity
-            style={[styles.reorderButton, { backgroundColor: colors.primary[500] }]}
-            onPress={onReorder}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.reorderText}>Reorder</Text>
-          </TouchableOpacity>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.rateButton, { borderColor: colors.primary[500] }]}
+              onPress={onPress} // Navigate to details to rate
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.rateText, { color: colors.primary[500] }]}>Rate</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.reorderButton, { backgroundColor: colors.primary[500] }]}
+              onPress={onReorder}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.reorderText}>Reorder</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
     </TouchableOpacity>
@@ -274,6 +287,20 @@ const styles = StyleSheet.create({
   },
   reorderText: {
     color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  rateButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  rateText: {
     fontSize: 14,
     fontWeight: '700',
   },

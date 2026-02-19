@@ -19,3 +19,15 @@ build/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Environment files
+.env
+Backend/.env
+
+# Node modules
+node_modules/
+Backend/node_modules/
+
+# Optional
+.env.local
+.env.production

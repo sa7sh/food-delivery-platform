@@ -88,7 +88,7 @@ export default function OrderDetailScreen() {
     );
   };
 
-  const handleSubmitReview = async ({ restaurantRating, restaurantComment, foodItemReviews }) => {
+  const handleSubmitReview = async ({ deliveryRating, deliveryComment, restaurantRating, restaurantComment, foodItemReviews }) => {
     try {
       setIsSubmittingReview(true);
 
@@ -97,6 +97,9 @@ export default function OrderDetailScreen() {
       const restaurantId = typeof currentOrder.restaurantId === 'object'
         ? currentOrder.restaurantId._id
         : currentOrder.restaurantId;
+      const deliveryPartnerId = typeof currentOrder.deliveryPartnerId === 'object'
+        ? currentOrder.deliveryPartnerId._id
+        : currentOrder.deliveryPartnerId;
 
       // Validation
       if (!orderId || !restaurantId) {
@@ -105,30 +108,44 @@ export default function OrderDetailScreen() {
         return;
       }
 
-      const reviewPayload = {
-        orderId,
-        restaurantId,
-        restaurantRating,
-        restaurantComment,
-        foodItemReviews,
-      };
+      const promises = [];
 
-      console.log('[ReviewSubmission] Submitting review with payload:', JSON.stringify(reviewPayload, null, 2));
-      console.log('[ReviewSubmission] Current order items:', JSON.stringify(currentOrder.items, null, 2));
+      // 1. Submit Restaurant/Food Review
+      if (restaurantRating > 0 || (foodItemReviews && foodItemReviews.length > 0)) {
+        const reviewPayload = {
+          orderId,
+          restaurantId,
+          restaurantRating,
+          restaurantComment,
+          foodItemReviews,
+        };
+        console.log('[ReviewSubmission] Submitting restaurant review:', reviewPayload);
+        promises.push(orderService.submitReview(reviewPayload));
+      }
 
-      const response = await orderService.submitReview(reviewPayload);
+      // 2. Submit Delivery Partner Review
+      if (deliveryRating > 0 && deliveryPartnerId) {
+        const deliveryPayload = {
+          orderId,
+          deliveryPartnerId,
+          rating: deliveryRating,
+          review: deliveryComment,
+          userId: currentOrder.userId // Assuming userId is in order or backend infers it
+        };
+        console.log('[ReviewSubmission] Submitting delivery review:', deliveryPayload);
+        promises.push(orderService.rateDeliveryPartner(deliveryPayload));
+      } else if (deliveryRating > 0 && !deliveryPartnerId) {
+        console.warn('[ReviewSubmission] Cannot submit delivery rating: No delivery partner ID');
+      }
 
-      console.log('[ReviewSubmission] Success:', response);
+      await Promise.all(promises);
+
       setShowReviewModal(false);
       Alert.alert('Success', 'Thank you for your reviews!');
       fetchOrderDetail(orderId); // Refresh to update review status
     } catch (error) {
       console.error('[ReviewSubmission] Error:', error);
-      console.error('[ReviewSubmission] Error message:', error.message);
-      console.error('[ReviewSubmission] Error data:', error.data);
-
-      const errorMessage = error.data?.message || error.message || 'Failed to submit reviews';
-      Alert.alert('Error', errorMessage);
+      Alert.alert('Error', 'Failed to submit reviews');
     } finally {
       setIsSubmittingReview(false);
     }
@@ -157,7 +174,7 @@ export default function OrderDetailScreen() {
   // Safe Status Calculation
   const orderStatus = currentOrder.status ? currentOrder.status.toUpperCase() : 'UNKNOWN';
   const canCancel = [ORDER_STATUS.PLACED, ORDER_STATUS.CONFIRMED].includes(orderStatus);
-  const canReview = [ORDER_STATUS.DELIVERED, 'COMPLETED'].includes(orderStatus) && !currentOrder.restaurantReviewed;
+  const canReview = [ORDER_STATUS.DELIVERED, 'COMPLETED'].includes(orderStatus) && (!currentOrder.restaurantReviewed || !currentOrder.deliveryReviewed);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -313,6 +330,8 @@ export default function OrderDetailScreen() {
         onSubmit={handleSubmitReview}
         isSubmitting={isSubmittingReview}
         orderItems={currentOrder.items || []}
+        isDeliveryReviewed={currentOrder.deliveryReviewed}
+        isRestaurantReviewed={currentOrder.restaurantReviewed}
       />
     </View>
   );

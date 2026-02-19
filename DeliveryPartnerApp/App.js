@@ -1,4 +1,5 @@
 import React from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -6,11 +7,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Screen Imports
-import AuthScreen from './screens/AuthScreen'; // NEW: Import Auth
+import AuthScreen from './screens/AuthScreen';
 import HomeScreen from './screens/HomeScreen';
 import ActiveOrderScreen from './screens/ActiveOrderScreen';
 import EarningsScreen from './screens/EarningsScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import { SocketProvider } from './context/SocketContext';
+import { useDeliveryAuthStore } from './store/authStore';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -64,23 +67,39 @@ function MainTabs() {
 }
 
 export default function App() {
+  // Zustand persist middleware rehydrates from AsyncStorage automatically.
+  // _hasHydrated tracks when the initial AsyncStorage read is complete.
+  const isAuthenticated = useDeliveryAuthStore((s) => s.isAuthenticated);
+  const hasHydrated = useDeliveryAuthStore((s) => s.hasHydrated);
+
+  // Show spinner while Zustand is reading from AsyncStorage on first mount
+  if (!hasHydrated) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <ActivityIndicator size="large" color="#9139BA" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <Stack.Navigator
-          initialRouteName="Auth" // Explicitly setting Auth as the start
-          screenOptions={{ headerShown: false }}
-        >
-          {/* 1. AUTH SCREEN - App loads this first */}
-          <Stack.Screen name="Auth" component={AuthScreen} />
+      <SocketProvider>
+        <NavigationContainer>
+          <Stack.Navigator
+            initialRouteName={isAuthenticated ? 'Main' : 'Auth'}
+            screenOptions={{ headerShown: false }}
+          >
+            {/* 1. AUTH SCREEN */}
+            <Stack.Screen name="Auth" component={AuthScreen} />
 
-          {/* 2. MAIN TABS - App goes here after login */}
-          <Stack.Screen name="Main" component={MainTabs} />
+            {/* 2. MAIN TABS */}
+            <Stack.Screen name="Main" component={MainTabs} />
 
-          {/* 3. ACTIVE ORDER - Full screen task view */}
-          <Stack.Screen name="ActiveOrder" component={ActiveOrderScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
+            {/* 3. ACTIVE ORDER - Full screen task view */}
+            <Stack.Screen name="ActiveOrder" component={ActiveOrderScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </SocketProvider>
     </SafeAreaProvider>
   );
 }

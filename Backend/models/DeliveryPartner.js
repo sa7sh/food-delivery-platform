@@ -4,6 +4,8 @@ const DeliveryPartnerSchema = new mongoose.Schema({
   // Step 1: Basic Info
   name: { type: String, required: true },
   phone: { type: String, unique: true, required: true },
+  email: { type: String, unique: true, sparse: true }, // Added email
+  password: { type: String }, // Added password
   vehicle: { type: String, required: true },
 
   // Step 2: Verification
@@ -26,8 +28,16 @@ const DeliveryPartnerSchema = new mongoose.Schema({
     enum: ['pending', 'verified', 'rejected'],
     default: 'pending'
   },
+  role: { type: String, default: 'delivery_guy' }, // Added role for easy identification
   isOnline: { type: Boolean, default: false }, // Useful for the dashboard later
-  rating: { type: Number, default: 5.0 },
+  ratings: [{
+    rating: Number,
+    review: String,
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order' },
+    createdAt: { type: Date, default: Date.now }
+  }],
+  averageRating: { type: Number, default: 5.0 },
   createdAt: { type: Date, default: Date.now }
 });
 

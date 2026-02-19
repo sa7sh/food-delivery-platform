@@ -104,6 +104,10 @@ export default function CartScreen() {
       })),
       totalAmount: total,
       deliveryAddress: `${selectedAddress.street}, ${selectedAddress.city}`,
+      deliveryLocation: (selectedAddress.latitude && selectedAddress.longitude) ? {
+        latitude: selectedAddress.latitude,
+        longitude: selectedAddress.longitude
+      } : null,
     };
 
     navigation.navigate(ROUTES.PAYMENT, { orderData });

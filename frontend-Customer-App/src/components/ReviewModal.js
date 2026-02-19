@@ -3,9 +3,13 @@ import { View, Text, Modal, TouchableOpacity, TextInput, ActivityIndicator, Anim
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 
-export default function ReviewModal({ visible, onClose, onSubmit, isSubmitting, orderItems = [] }) {
+export default function ReviewModal({ visible, onClose, onSubmit, isSubmitting, orderItems = [], isDeliveryReviewed = false, isRestaurantReviewed = false }) {
   const { colors, isDark } = useTheme();
-  const [step, setStep] = useState(1); // 1 = Restaurant, 2 = Food Items
+  const [step, setStep] = useState(1); // 1 = Delivery, 2 = Restaurant, 3 = Food Items
+
+  // Delivery rating
+  const [deliveryRating, setDeliveryRating] = useState(0);
+  const [deliveryComment, setDeliveryComment] = useState('');
 
   // Restaurant rating
   const [restaurantRating, setRestaurantRating] = useState(0);
@@ -19,6 +23,14 @@ export default function ReviewModal({ visible, onClose, onSubmit, isSubmitting, 
 
   useEffect(() => {
     if (visible) {
+      if (!isDeliveryReviewed) {
+        setStep(1);
+      } else if (!isRestaurantReviewed) {
+        setStep(2);
+      } else {
+        setStep(1); // Default fallthrough
+      }
+
       Animated.spring(scale, {
         toValue: 1,
         useNativeDriver: true,
@@ -29,36 +41,54 @@ export default function ReviewModal({ visible, onClose, onSubmit, isSubmitting, 
       scale.setValue(0);
       // Reset on close
       setStep(1);
+      setDeliveryRating(0);
+      setDeliveryComment('');
       setRestaurantRating(0);
       setRestaurantComment('');
       setFoodItemRatings({});
       setFoodItemComments({});
     }
-  }, [visible]);
+  }, [visible, isDeliveryReviewed, isRestaurantReviewed]);
 
   const handleSubmit = async () => {
     if (step === 1) {
-      // Move to food items step
-      setStep(2);
+      if (isRestaurantReviewed) {
+        await submitAll();
+      } else {
+        setStep(2);
+      }
+    } else if (step === 2) {
+      setStep(3);
     } else {
-      // Submit all reviews
-      const foodItemReviews = orderItems.map(item => ({
-        foodItemId: item.foodId || item._id,
-        rating: foodItemRatings[item.foodId || item._id] || 0,
-        comment: foodItemComments[item.foodId || item._id] || '',
-      })).filter(review => review.rating > 0); // Only include rated items
-
-      await onSubmit({
-        restaurantRating,
-        restaurantComment,
-        foodItemReviews,
-      });
+      await submitAll();
     }
   };
 
+  const submitAll = async () => {
+    const foodItemReviews = orderItems.map(item => ({
+      foodItemId: item.foodId || item._id,
+      rating: foodItemRatings[item.foodId || item._id] || 0,
+      comment: foodItemComments[item.foodId || item._id] || '',
+    })).filter(review => review.rating > 0);
+
+    await onSubmit({
+      deliveryRating,
+      deliveryComment,
+      restaurantRating,
+      restaurantComment,
+      foodItemReviews,
+    });
+  };
+
   const handleBack = () => {
-    if (step === 2) {
-      setStep(1);
+    if (step === 3) {
+      setStep(2);
+    } else if (step === 2) {
+      if (isDeliveryReviewed) {
+        onClose();
+      } else {
+        setStep(1);
+      }
     }
   };
 
@@ -82,9 +112,65 @@ export default function ReviewModal({ visible, onClose, onSubmit, isSubmitting, 
     );
   };
 
+  const renderDeliveryStep = () => (
+    <>
+      <View style={styles.header}>
+        <View style={[styles.iconCircle, { backgroundColor: `${colors.primary[500]}20` }]}>
+          <Ionicons name="bicycle" size={32} color={colors.primary[500]} />
+        </View>
+        <Text style={[styles.title, { color: colors.text }]}>
+          Rate Delivery Partner
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.textSub }]}>
+          How was the delivery experience?
+        </Text>
+      </View>
+
+      {renderStars(deliveryRating, setDeliveryRating)}
+
+      <View style={[styles.inputContainer, { backgroundColor: colors.surfaceHighlight, borderColor: colors.border }]}>
+        <TextInput
+          multiline
+          placeholder="Leave a comment (optional)..."
+          placeholderTextColor={colors.textSub}
+          value={deliveryComment}
+          onChangeText={setDeliveryComment}
+          style={[styles.textInput, { color: colors.text }]}
+          textAlignVertical="top"
+          maxLength={500}
+        />
+      </View>
+
+      <View style={styles.buttonsContainer}>
+        <TouchableOpacity
+          onPress={handleSubmit}
+          disabled={deliveryRating === 0}
+          style={[
+            styles.submitButton,
+            { backgroundColor: deliveryRating === 0 ? colors.border : colors.primary[600] }
+          ]}
+        >
+          <Text style={[styles.submitButtonText, { color: deliveryRating === 0 ? colors.textSub : '#fff' }]}>
+            Next: Rate Restaurant
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={onClose}
+          style={styles.cancelButton}
+        >
+          <Text style={[styles.cancelButtonText, { color: colors.textSub }]}>Maybe Later</Text>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+
   const renderRestaurantStep = () => (
     <>
       <View style={styles.header}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
         <View style={[styles.iconCircle, { backgroundColor: `${colors.primary[500]}20` }]}>
           <Ionicons name="restaurant" size={32} color={colors.primary[500]} />
         </View>
@@ -92,7 +178,7 @@ export default function ReviewModal({ visible, onClose, onSubmit, isSubmitting, 
           Rate Restaurant
         </Text>
         <Text style={[styles.subtitle, { color: colors.textSub }]}>
-          How was the service and delivery?
+          How was the service and food?
         </Text>
       </View>
 
@@ -129,7 +215,7 @@ export default function ReviewModal({ visible, onClose, onSubmit, isSubmitting, 
           onPress={onClose}
           style={styles.cancelButton}
         >
-          <Text style={[styles.cancelButtonText, { color: colors.textSub }]}>Maybe Later</Text>
+          <Text style={[styles.cancelButtonText, { color: colors.textSub }]}>Skip</Text>
         </TouchableOpacity>
       </View>
     </>
@@ -239,7 +325,7 @@ export default function ReviewModal({ visible, onClose, onSubmit, isSubmitting, 
             { transform: [{ scale }], backgroundColor: colors.surface }
           ]}
         >
-          {step === 1 ? renderRestaurantStep() : renderFoodItemsStep()}
+          {step === 1 ? renderDeliveryStep() : step === 2 ? renderRestaurantStep() : renderFoodItemsStep()}
         </Animated.View>
       </View>
     </Modal>

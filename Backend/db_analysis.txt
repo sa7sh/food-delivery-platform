@@ -1,0 +1,9 @@
+Checking 47 orders...
+Order 69807060ae7ce671475131e1 Size: 179.48 KB -> Sanitized: 0.43 KB
+Order 698070daae7ce6714751320c Size: 663.71 KB -> Sanitized: 0.55 KB
+Order 6980721bae7ce67147513266 Size: 437.02 KB -> Sanitized: 0.57 KB
+Order 698073ecae7ce67147513321 Size: 663.59 KB -> Sanitized: 0.43 KB
+Order 69819ac6e1dd2b3f59622d8d Size: 1107.89 KB -> Sanitized: 0.48 KB
+Average Order Size: 66.75 KB
+Average Sanitized Size: 0.79 KB
+Total Bandwidth Saved (for 47 orders): 3.03 MB

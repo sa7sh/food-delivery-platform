@@ -14,6 +14,7 @@ export default function OrderStatusTimeline({ currentStatus }) {
       ORDER_STATUS.PLACED,
       ORDER_STATUS.CONFIRMED,
       ORDER_STATUS.PREPARING,
+      ORDER_STATUS.READY,
       ORDER_STATUS.OUT_FOR_DELIVERY,
       ORDER_STATUS.DELIVERED,
     ];
@@ -30,6 +31,7 @@ export default function OrderStatusTimeline({ currentStatus }) {
     { key: ORDER_STATUS.PLACED, label: 'Order Placed', icon: '📝' },
     { key: ORDER_STATUS.CONFIRMED, label: 'Confirmed', icon: '✅' },
     { key: ORDER_STATUS.PREPARING, label: 'Preparing', icon: '👨‍🍳' },
+    { key: ORDER_STATUS.READY, label: 'Order Ready', icon: '🛍️' },
     { key: ORDER_STATUS.OUT_FOR_DELIVERY, label: 'Out for Delivery', icon: '🚴' },
     { key: ORDER_STATUS.DELIVERED, label: 'Delivered', icon: '✨' },
   ];

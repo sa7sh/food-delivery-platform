@@ -6,6 +6,7 @@ import DeliveryPartner from "../models/DeliveryPartner.js";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 dotenv.config();
 const router = express.Router();
 const uploadDir = './uploads';
@@ -28,6 +29,8 @@ router.post('/api/auth/delivery/register', upload.fields([
         const {
             name,
             phone,
+            email,
+            password,
             vehicle,
             aadhaarNumber,
             panNumber,
@@ -36,9 +39,16 @@ router.post('/api/auth/delivery/register', upload.fields([
             ifscCode
         } = req.body;
 
-        const existingPartner = await DeliveryPartner.findOne({ phone });
+        const existingPartner = await DeliveryPartner.findOne({ $or: [{ phone }, { email }] });
         if (existingPartner) {
-            return res.status(400).json({ success: false, message: "Phone already registered." });
+            return res.status(400).json({ success: false, message: "Phone or Email already registered." });
+        }
+
+        // Hash Password if provided
+        let hashedPassword = null;
+        if (password) {
+            const salt = await bcrypt.genSalt(10);
+            hashedPassword = await bcrypt.hash(password, salt);
         }
 
         // Capture file paths
@@ -49,6 +59,8 @@ router.post('/api/auth/delivery/register', upload.fields([
         const newPartner = new DeliveryPartner({
             name,
             phone,
+            email,
+            password: hashedPassword,
             vehicle,
             aadhaarNumber,
             panNumber,
@@ -85,9 +97,24 @@ router.post('/api/auth/delivery/register', upload.fields([
 
 router.post('/api/auth/delivery/login', async (req, res) => {
     try {
-        const { phone } = req.body;
-        const partner = await DeliveryPartner.findOne({ phone });
-        if (!partner) return res.status(404).json({ success: false, message: "Account not found." });
+        const { phone, email, password } = req.body;
+        let partner;
+
+        if (email && password) {
+            // Email/Password Login
+            partner = await DeliveryPartner.findOne({ email });
+            if (!partner) return res.status(404).json({ success: false, message: "Account not found." });
+
+            const isMatch = await bcrypt.compare(password, partner.password);
+            if (!isMatch) return res.status(400).json({ success: false, message: "Invalid credentials." });
+
+        } else if (phone) {
+            // Phone Legacy Login (or OTP in future)
+            partner = await DeliveryPartner.findOne({ phone });
+            if (!partner) return res.status(404).json({ success: false, message: "Account not found." });
+        } else {
+            return res.status(400).json({ success: false, message: "Please provide Email/Password or Phone." });
+        }
 
         // Generate Token
         const token = jwt.sign(

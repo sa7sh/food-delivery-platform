@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, View, Text, TouchableOpacity, FlatList,
   Switch, StatusBar, Dimensions, Alert
@@ -7,53 +7,101 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { useSocket } from '../context/SocketContext';
 
+import { API_URL } from '../constants/Config';
+
+import { useFocusEffect } from '@react-navigation/native';
 const { width } = Dimensions.get('window');
-const API_BASE = "http://192.168.29.228:5000/api";
+const API_BASE = API_URL;
 const DRIVER_URL = `${API_BASE}/driver`;
 const ORDER_URL = `${API_BASE}/orders`;
 
 // Professional Order Card Component 
-const OrderCard = ({ restaurant, distance, pay, items, location, onAccept }) => (
-  <View style={styles.card}>
-    <View style={styles.cardHeader}>
-      <View style={styles.brandInfo}>
-        <View style={styles.iconCircle}>
-          <MaterialCommunityIcons name="silverware-fork-knife" size={18} color="#9139BA" />
+const OrderCard = ({ restaurant, distance, pay, items, location, onAccept, timestamp }) => {
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [expired, setExpired] = useState(false);
+
+  useEffect(() => {
+    if (!timestamp) return;
+
+    // Calculate initial remaining time (1 minute window)
+    const orderTime = new Date(timestamp).getTime();
+    const expiryTime = orderTime + 2 * 60 * 1000; // 2 minutes later
+
+
+    const updateTimer = () => {
+      const now = Date.now();
+      const diff = Math.max(0, Math.floor((expiryTime - now) / 1000));
+
+      setTimeLeft(diff);
+
+      if (diff <= 0) {
+        setExpired(true);
+      }
+    };
+
+    updateTimer(); // Initial call
+
+    const interval = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(interval);
+  }, [timestamp]);
+
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  return (
+    <View style={[styles.card, expired && styles.cardExpired]}>
+      <View style={styles.cardHeader}>
+        <View style={styles.brandInfo}>
+          <View style={[styles.iconCircle, expired && styles.iconCircleExpired]}>
+            <MaterialCommunityIcons name="silverware-fork-knife" size={18} color={expired ? "#bdc3c7" : "#9139BA"} />
+          </View>
+          <View>
+            <Text style={[styles.restaurantName, expired && styles.textExpired]}>{restaurant}</Text>
+            <Text style={styles.locationText}>{location}</Text>
+          </View>
         </View>
-        <View>
-          <Text style={styles.restaurantName}>{restaurant}</Text>
-          <Text style={styles.locationText}>{location}</Text>
+        <View style={[styles.priceContainer, expired && styles.priceContainerExpired]}>
+          <Text style={[styles.currencySymbol, expired && styles.textExpired]}>₹</Text>
+          <Text style={[styles.priceText, expired && styles.textExpired]}>{pay}</Text>
         </View>
       </View>
-      <View style={styles.priceContainer}>
-        <Text style={styles.currencySymbol}>₹</Text>
-        <Text style={styles.priceText}>{pay}</Text>
+
+      <View style={styles.divider} />
+
+      <View style={styles.cardFooter}>
+        <View style={styles.metaRow}>
+          <View style={styles.metaItem}>
+            <MaterialCommunityIcons name="map-marker-distance" size={16} color="#95a5a6" />
+            <Text style={styles.metaText}>{distance} km</Text>
+          </View>
+          <View style={styles.dotSeparator} />
+          <View style={styles.metaItem}>
+            <MaterialCommunityIcons name="package-variant" size={16} color="#95a5a6" />
+            <Text style={styles.metaText}>{items} items</Text>
+          </View>
+        </View>
+
+        {!expired ? (
+          <TouchableOpacity style={styles.acceptBtn} onPress={onAccept} activeOpacity={0.8}>
+            <Text style={styles.acceptBtnText}>Accept</Text>
+            <Text style={styles.timerText}>({formatTime(timeLeft)})</Text>
+            <MaterialCommunityIcons name="check-circle" size={16} color="#fff" />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.expiredBtn}>
+            <Text style={styles.expiredBtnText}>Expired</Text>
+          </View>
+        )}
       </View>
     </View>
-
-    <View style={styles.divider} />
-
-    <View style={styles.cardFooter}>
-      <View style={styles.metaRow}>
-        <View style={styles.metaItem}>
-          <MaterialCommunityIcons name="map-marker-distance" size={16} color="#95a5a6" />
-          <Text style={styles.metaText}>{distance} km</Text>
-        </View>
-        <View style={styles.dotSeparator} />
-        <View style={styles.metaItem}>
-          <MaterialCommunityIcons name="package-variant" size={16} color="#95a5a6" />
-          <Text style={styles.metaText}>{items} items</Text>
-        </View>
-      </View>
-
-      <TouchableOpacity style={styles.acceptBtn} onPress={onAccept} activeOpacity={0.8}>
-        <Text style={styles.acceptBtnText}>Accept</Text>
-        <MaterialCommunityIcons name="check-circle" size={16} color="#fff" />
-      </TouchableOpacity>
-    </View>
-  </View>
-);
+  );
+};
 
 export default function HomeScreen({ navigation }) {
   const [isOnline, setIsOnline] = useState(false);
@@ -65,17 +113,32 @@ export default function HomeScreen({ navigation }) {
   const fetchOrders = async () => {
     try {
       const token = await AsyncStorage.getItem('deliveryToken');
+      console.log("Fetching orders with token:", token ? "Present" : "Missing"); // DEBUG
+
       if (!token) return;
 
       const response = await axios.get(`${ORDER_URL}/delivery/available`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      if (response.data.success) {
+      console.log("Fetch Orders Response Status:", response.status); // DEBUG
+      console.log("Fetch Orders Data:", JSON.stringify(response.data, null, 2)); // DEBUG
+
+      // Backend returns the array directly
+      if (Array.isArray(response.data)) {
+        setAvailableOrders(response.data);
+      } else if (response.data.success && Array.isArray(response.data.orders)) {
+        // Fallback in case I change backend later
         setAvailableOrders(response.data.orders);
+      } else {
+        console.log("Unexpected response format:", response.data);
       }
     } catch (error) {
       console.log("Error fetching orders:", error);
+      if (error.response) {
+        console.log("Error Response:", error.response.data);
+        console.log("Error Status:", error.response.status);
+      }
     } finally {
       setRefreshing(false);
     }
@@ -109,10 +172,11 @@ export default function HomeScreen({ navigation }) {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      if (response.data.success) {
+      // Backend returns the updated order object directly
+      if (response.data && response.data._id) {
         navigation.navigate('ActiveOrder', { orderId: orderId });
       } else {
-        Alert.alert("Failed", response.data.message || "Failed to accept order");
+        Alert.alert("Failed", "Failed to accept order");
       }
     } catch (error) {
       console.log("Error accepting order:", error);
@@ -127,9 +191,32 @@ export default function HomeScreen({ navigation }) {
     fetchOrders();
   };
 
+  // Socket Listener
+  const socket = useSocket();
+
+  // Refetch when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchOrders();
+    }, [])
+  );
+
   React.useEffect(() => {
     fetchOrders();
-  }, []);
+
+    if (socket) {
+      socket.on('newAvailableOrder', (newOrder) => {
+        console.log("New order received via socket!", newOrder._id);
+        // We can either append to list or refetch
+        fetchOrders();
+        Alert.alert("New Task", "A new delivery task is available nearby!");
+      });
+
+      return () => {
+        socket.off('newAvailableOrder');
+      };
+    }
+  }, [socket]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -183,7 +270,7 @@ export default function HomeScreen({ navigation }) {
 
           <FlatList
             data={availableOrders}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item._id}
             ListHeaderComponent={() => (
               <View style={styles.taskHeader}>
                 <View>
@@ -198,8 +285,13 @@ export default function HomeScreen({ navigation }) {
             renderItem={({ item }) => (
               <View style={styles.cardPadding}>
                 <OrderCard
-                  {...item}
-                  onAccept={() => handleAcceptOrder(item.id)}
+                  restaurant={item.restaurantId?.name || "Unknown Restaurant"}
+                  distance="2.5" // Mock distance for now
+                  pay={item.totalAmount}
+                  items={item.items?.length || 0}
+                  location={item.restaurantId?.addresses?.[0]?.city || item.restaurantId?.addresses?.[0]?.street || "Location N/A"}
+                  onAccept={() => handleAcceptOrder(item._id)}
+                  timestamp={item.updatedAt || item.createdAt} // Use updatedAt if available, else createdAt
                 />
               </View>
             )}
@@ -366,5 +458,18 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 22, fontWeight: '800', color: '#2d3436' },
   emptySub: { textAlign: 'center', color: '#b2bec3', marginTop: 10, fontSize: 15, lineHeight: 20 },
   primaryBtn: { marginTop: 30, backgroundColor: '#9139BA', height: 54, borderRadius: 15, width: '100%', justifyContent: 'center', alignItems: 'center' },
-  primaryBtnText: { color: '#fff', fontWeight: '900', fontSize: 15, letterSpacing: 1 }
+  primaryBtnText: { color: '#fff', fontWeight: '900', fontSize: 15, letterSpacing: 1 },
+  // Expired Styles
+  cardExpired: { opacity: 0.6, backgroundColor: '#f9f9f9' },
+  iconCircleExpired: { backgroundColor: '#ecf0f1' },
+  textExpired: { color: '#bdc3c7' },
+  priceContainerExpired: { backgroundColor: '#ecf0f1' },
+  timerText: { fontSize: 13, color: '#FFFFFF', fontWeight: 'bold', marginLeft: 6, textAlign: 'center' },
+  expiredBtn: {
+    backgroundColor: '#bdc3c7',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  expiredBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' }
 });

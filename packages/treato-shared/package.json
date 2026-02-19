@@ -1,0 +1,16 @@
+{
+  "name": "@treato/shared",
+  "version": "1.0.0",
+  "description": "Shared constants, utilities, and API client for the Treato platform",
+  "main": "index.js",
+  "type": "module",
+  "exports": {
+    "./constants/orderStatuses": "./constants/orderStatuses.js",
+    "./constants/socketEvents": "./constants/socketEvents.js",
+    "./constants/fees": "./constants/fees.js",
+    "./utils/formatCurrency": "./utils/formatCurrency.js",
+    "./utils/formatDate": "./utils/formatDate.js",
+    "./api/createApiClient": "./api/createApiClient.js"
+  },
+  "license": "MIT"
+}

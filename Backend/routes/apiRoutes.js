@@ -816,7 +816,7 @@ router.get("/user/addresses", protect, async (req, res) => {
 // Add Address
 router.post("/user/addresses", protect, async (req, res) => {
   try {
-    const { label, street, city, state, pincode, landmark, isDefault } = req.body;
+    const { label, street, city, state, pincode, landmark, isDefault, latitude, longitude } = req.body;
     const user = await User.findById(req.user._id);
 
     if (isDefault) {
@@ -825,7 +825,7 @@ router.post("/user/addresses", protect, async (req, res) => {
     const shouldBeDefault = isDefault || user.addresses.length === 0;
 
     user.addresses.push({
-      label, street, city, state, pincode, landmark, isDefault: shouldBeDefault
+      label, street, city, state, pincode, landmark, isDefault: shouldBeDefault, latitude, longitude
     });
 
     await user.save();

@@ -1,29 +1,56 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   StyleSheet, View, Text, ScrollView,
-  TouchableOpacity, Dimensions, FlatList
+  TouchableOpacity, FlatList, ActivityIndicator, RefreshControl
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-const { width } = Dimensions.get('window');
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
+import { API_URL } from '../constants/Config';
 
 export default function EarningsScreen() {
-  const weeklyData = [
-    { day: 'Mon', amount: 450, height: 40 },
-    { day: 'Tue', amount: 620, height: 60 },
-    { day: 'Wed', amount: 300, height: 30 },
-    { day: 'Thu', amount: 840, height: 85 },
-    { day: 'Fri', amount: 500, height: 50 },
-    { day: 'Sat', amount: 0, height: 2 }, // Current day or empty
-    { day: 'Sun', amount: 0, height: 2 },
-  ];
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const transactions = [
-    { id: '1', store: 'Biryani by Kilo', time: '12:45 PM', amount: '65.00', status: 'Completed' },
-    { id: '2', store: "McDonald's", time: '11:20 AM', amount: '42.00', status: 'Completed' },
-    { id: '3', store: 'Starbucks', time: '09:15 AM', amount: '55.50', status: 'Completed' },
-    { id: '4', store: 'KFC', time: 'Yesterday', amount: '82.00', status: 'Completed' },
-  ];
+  const fetchEarnings = async () => {
+    try {
+      const token = await AsyncStorage.getItem('deliveryToken');
+      const response = await fetch(`${API_URL}/orders/delivery/my-earnings`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const json = await response.json();
+      setData(json);
+    } catch (e) {
+      console.log('Error fetching earnings:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      fetchEarnings();
+    }, [])
+  );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchEarnings();
+  };
+
+  // Compute bar chart heights from weekly data
+  const getBarHeight = (amount, maxAmount) => {
+    if (!maxAmount || maxAmount === 0) return 2;
+    return Math.max(2, (amount / maxAmount) * 100);
+  };
+
+  const maxAmount = data?.weeklyData
+    ? Math.max(...data.weeklyData.map(d => d.amount), 1)
+    : 1;
 
   const renderTransaction = ({ item }) => (
     <View style={styles.transactionCard}>
@@ -33,45 +60,78 @@ export default function EarningsScreen() {
         </View>
         <View>
           <Text style={styles.transStore}>{item.store}</Text>
-          <Text style={styles.transTime}>{item.time}</Text>
+          <Text style={styles.transTime}>{item.date} · {item.time}</Text>
         </View>
       </View>
       <View style={styles.transRight}>
         <Text style={styles.transAmount}>+₹{item.amount}</Text>
-        <Text style={styles.transStatus}>{item.status}</Text>
+        <Text style={styles.transStatus}>COMPLETED</Text>
       </View>
     </View>
   );
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#9139BA" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Earnings</Text>
-        <TouchableOpacity style={styles.calendarBtn}>
-          <MaterialCommunityIcons name="calendar-month" size={20} color="#9139BA" />
-          <Text style={styles.calendarText}>This Week</Text>
+        <TouchableOpacity style={styles.calendarBtn} onPress={onRefresh}>
+          <MaterialCommunityIcons name="refresh" size={20} color="#9139BA" />
+          <Text style={styles.calendarText}>Refresh</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#9139BA']} />}
+      >
         {/* TOTAL BALANCE CARD */}
         <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>WITHDRAWABLE BALANCE</Text>
-          <Text style={styles.balanceAmount}>₹2,450.00</Text>
-          <TouchableOpacity style={styles.withdrawBtn}>
-            <Text style={styles.withdrawText}>Withdraw to Bank</Text>
-          </TouchableOpacity>
+          <Text style={styles.balanceLabel}>TOTAL EARNINGS</Text>
+          <Text style={styles.balanceAmount}>₹{(data?.totalEarnings || 0).toFixed(2)}</Text>
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>₹{(data?.todayEarnings || 0).toFixed(2)}</Text>
+              <Text style={styles.statLabel}>Today</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>₹{(data?.weekEarnings || 0).toFixed(2)}</Text>
+              <Text style={styles.statLabel}>This Week</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{data?.transactions?.length || 0}</Text>
+              <Text style={styles.statLabel}>Deliveries</Text>
+            </View>
+          </View>
         </View>
 
         {/* WEEKLY CHART */}
         <View style={styles.chartSection}>
           <Text style={styles.sectionTitle}>Weekly Overview</Text>
           <View style={styles.chartContainer}>
-            {weeklyData.map((item, index) => (
+            {(data?.weeklyData || []).map((item, index) => (
               <View key={index} style={styles.barWrapper}>
-                <View style={[styles.bar, { height: item.height + '%' }, item.amount > 800 && styles.activeBar]} />
+                <Text style={styles.barAmount}>{item.amount > 0 ? `₹${item.amount}` : ''}</Text>
+                <View
+                  style={[
+                    styles.bar,
+                    { height: `${getBarHeight(item.amount, maxAmount)}%` },
+                    item.amount === maxAmount && item.amount > 0 && styles.activeBar
+                  ]}
+                />
                 <Text style={styles.barDay}>{item.day}</Text>
               </View>
             ))}
@@ -81,16 +141,22 @@ export default function EarningsScreen() {
         {/* RECENT ACTIVITY */}
         <View style={styles.activityHeader}>
           <Text style={styles.sectionTitle}>Recent Activity</Text>
-          <TouchableOpacity><Text style={styles.viewAll}>View All</Text></TouchableOpacity>
+          <Text style={styles.viewAll}>{data?.transactions?.length || 0} deliveries</Text>
         </View>
 
-        <FlatList
-          data={transactions}
-          renderItem={renderTransaction}
-          keyExtractor={item => item.id}
-          scrollEnabled={false} // Since it's inside a ScrollView
-        />
-
+        {data?.transactions?.length === 0 ? (
+          <View style={styles.emptyState}>
+            <MaterialCommunityIcons name="moped-outline" size={48} color="#dfe6e9" />
+            <Text style={styles.emptyText}>No completed deliveries yet</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={data?.transactions || []}
+            renderItem={renderTransaction}
+            keyExtractor={item => item.id.toString()}
+            scrollEnabled={false}
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -98,6 +164,7 @@ export default function EarningsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -131,14 +198,11 @@ const styles = StyleSheet.create({
   },
   balanceLabel: { color: '#b2bec3', fontSize: 11, fontWeight: 'bold', letterSpacing: 1 },
   balanceAmount: { color: '#fff', fontSize: 36, fontWeight: '900', marginVertical: 10 },
-  withdrawBtn: {
-    backgroundColor: '#9139BA',
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 10
-  },
-  withdrawText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
+  statsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 12 },
+  statItem: { flex: 1, alignItems: 'center' },
+  statValue: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  statLabel: { color: '#b2bec3', fontSize: 11, marginTop: 2 },
+  statDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.15)' },
 
   chartSection: { paddingHorizontal: 20, marginBottom: 30 },
   sectionTitle: { fontSize: 18, fontWeight: '800', color: '#2d3436', marginBottom: 20 },
@@ -146,12 +210,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    height: 150,
+    height: 160,
     backgroundColor: '#f8f9fa',
     padding: 15,
+    paddingTop: 30,
     borderRadius: 20
   },
-  barWrapper: { alignItems: 'center', flex: 1 },
+  barWrapper: { alignItems: 'center', flex: 1, height: '100%', justifyContent: 'flex-end' },
+  barAmount: { fontSize: 8, color: '#9139BA', fontWeight: 'bold', marginBottom: 2 },
   bar: { width: 12, backgroundColor: '#dfe6e9', borderRadius: 6, marginBottom: 8 },
   activeBar: { backgroundColor: '#9139BA' },
   barDay: { fontSize: 10, color: '#b2bec3', fontWeight: 'bold' },
@@ -188,5 +254,8 @@ const styles = StyleSheet.create({
   transTime: { fontSize: 12, color: '#b2bec3', marginTop: 2 },
   transRight: { alignItems: 'flex-end' },
   transAmount: { fontSize: 16, fontWeight: 'bold', color: '#2ecc71' },
-  transStatus: { fontSize: 10, color: '#b2bec3', fontWeight: 'bold', textTransform: 'uppercase', marginTop: 2 }
+  transStatus: { fontSize: 10, color: '#b2bec3', fontWeight: 'bold', textTransform: 'uppercase', marginTop: 2 },
+
+  emptyState: { alignItems: 'center', paddingVertical: 40 },
+  emptyText: { color: '#b2bec3', fontSize: 15, marginTop: 12, fontWeight: '600' },
 });

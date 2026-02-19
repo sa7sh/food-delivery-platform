@@ -107,7 +107,7 @@ export default function SavedAddressesScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const result = await deleteAddress(address.id);
+            const result = await deleteAddress(address._id || address.id);
             if (result.success) {
               Alert.alert('Success', 'Address deleted');
             }
@@ -145,7 +145,7 @@ export default function SavedAddressesScreen() {
         {addresses.length > 0 ? (
           addresses.map((address) => (
             <AddressCard
-              key={address.id}
+              key={address._id || address.id}
               address={address}
               onEdit={handleEditAddress}
               onDelete={handleDeleteAddress}
@@ -172,7 +172,7 @@ export default function SavedAddressesScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+    </View >
   );
 }
 
