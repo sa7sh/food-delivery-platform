@@ -612,7 +612,19 @@ router.get("/restaurant/profile", protect, async (req, res) => {
       return res.status(404).json({ message: "Restaurant not found" });
     }
     console.log(`[Backend] Returning profile for: ${user.email}`);
-    res.json(user);
+
+    // Convert Mongoose document to plain object
+    const userObj = user.toObject();
+
+    // Map addresses array to a flat address string for the frontend
+    if (userObj.addresses && userObj.addresses.length > 0) {
+      userObj.address = userObj.addresses[0].street;
+    } else {
+      userObj.address = "";
+    }
+    delete userObj.addresses; // Optional: clean up the array
+
+    res.json(userObj);
   } catch (error) {
     console.error("[Backend] GET /restaurant/profile ERROR:", error);
     res.status(500).json({ message: error.message });
@@ -641,10 +653,6 @@ router.put("/restaurant/profile", protect, upload.fields([
       }
     }
 
-    try {
-      const logMsg = `[${new Date().toISOString()}] PUT /restaurant/profile HIT\nUser: ${req.user._id}\nBody: ${JSON.stringify(req.body)}\nisOpen: ${isOpen} (${typeof isOpen})\n\n`;
-      fs.appendFileSync('backend_debug.log', logMsg);
-    } catch (err) { console.error("Log error", err); }
 
     console.log("PUT /restaurant/profile HIT");
 
@@ -665,9 +673,27 @@ router.put("/restaurant/profile", protect, upload.fields([
 
     user.name = name || user.name;
     user.phone = phone || user.phone;
-    if (address && user.addresses.length > 0) {
-      user.addresses[0].street = address;
+
+    // Address Fix: If an address is provided, either update the first one or add it if empty.
+    if (address) {
+      // Force Mongoose to see the array as entirely new
+      const newAddresses = user.addresses ? [...user.addresses] : [];
+      if (newAddresses.length > 0) {
+        newAddresses[0].street = address;
+      } else {
+        newAddresses.push({
+          label: "Restaurant",
+          street: address,
+          city: "Unknown", // Required by schema
+          state: "Unknown", // Required by schema
+          pincode: "000000", // Required by schema
+          isDefault: true
+        });
+      }
+      user.addresses = newAddresses;
+      user.markModified("addresses");
     }
+
     user.cuisineType = cuisineType || user.cuisineType;
     user.isOpen = isOpen !== undefined ? isOpen : user.isOpen;
 
@@ -681,10 +707,24 @@ router.put("/restaurant/profile", protect, upload.fields([
       user.restaurantImage = restaurantImage;
     }
 
-    const updatedUser = await user.save();
-    console.log(`User saved. restaurantImage in DB: ${!!updatedUser.restaurantImage}`);
+    let updatedUser;
+    try {
+      updatedUser = await user.save();
+    } catch (saveErr) {
+      console.error("Mongoose Save Error in /restaurant/profile:", saveErr);
+      return res.status(400).json({ message: "Database validation failed", details: saveErr.message });
+    }
+
     const responseUser = updatedUser.toObject();
     delete responseUser.password;
+
+    // Map addresses array to a flat address string for the frontend
+    if (responseUser.addresses && responseUser.addresses.length > 0) {
+      responseUser.address = responseUser.addresses[0].street;
+    } else {
+      responseUser.address = "";
+    }
+    delete responseUser.addresses; // Optional: clean up the array
 
     res.json(responseUser);
   } catch (error) {

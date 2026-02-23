@@ -162,8 +162,8 @@ router.get("/restaurant", protect, async (req, res) => {
 router.get("/:id", protect, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
-      .populate("restaurantId", "name profileImage restaurantImage")
-      .populate("customerId", "name phone")
+      .populate("restaurantId", "name profileImage restaurantImage addresses")
+      .populate("customerId", "name phone addresses")
       .populate("deliveryPartnerId", "name phone")
       .populate({ path: "items.foodId", select: "image name" });
     if (!order) {
@@ -282,11 +282,12 @@ router.get("/delivery/available", protectDelivery, async (req, res) => {
   }
 });
 
-// Get Earnings for Delivery Partner
+// 2. Get Earnings for Delivery Partner
 router.get("/delivery/my-earnings", protectDelivery, async (req, res) => {
   try {
     const partnerId = req.partner._id;
-    const DELIVERY_FEE = DELIVERY_FEE_PER_ORDER; // from @treato/shared
+    // const DELIVERY_FEE = DELIVERY_FEE_PER_ORDER; 
+    const DELIVERY_FEE = 40;
 
     const completedOrders = await Order.find({
       deliveryPartnerId: partnerId,
@@ -297,8 +298,11 @@ router.get("/delivery/my-earnings", protectDelivery, async (req, res) => {
 
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Calculate start of week (Sunday-based)
+    const currentDay = now.getDay();
     const startOfWeek = new Date(startOfToday);
-    startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
+    startOfWeek.setDate(startOfToday.getDate() - currentDay);
 
     let totalEarnings = 0;
     let todayEarnings = 0;
@@ -316,10 +320,14 @@ router.get("/delivery/my-earnings", protectDelivery, async (req, res) => {
     completedOrders.forEach(order => {
       totalEarnings += DELIVERY_FEE;
       const completedAt = new Date(order.updatedAt);
+
       if (completedAt >= startOfToday) todayEarnings += DELIVERY_FEE;
       if (completedAt >= startOfWeek) weekEarnings += DELIVERY_FEE;
+
       const dayKey = completedAt.toLocaleDateString('en-US', { weekday: 'short' });
-      if (dayKey in dailyMap) dailyMap[dayKey] += DELIVERY_FEE;
+      if (dailyMap.hasOwnProperty(dayKey)) {
+        dailyMap[dayKey] += DELIVERY_FEE;
+      }
     });
 
     const weeklyData = Object.entries(dailyMap).map(([day, amount]) => ({ day, amount }));
@@ -327,8 +335,10 @@ router.get("/delivery/my-earnings", protectDelivery, async (req, res) => {
     const transactions = completedOrders.slice(0, 20).map(order => ({
       id: order._id,
       store: order.restaurantId?.name || 'Restaurant',
-      time: new Date(order.updatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-      date: new Date(order.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+      // Format time: 10:30 AM
+      time: new Date(order.updatedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+      // Format date: Feb 19
+      date: new Date(order.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       amount: DELIVERY_FEE.toFixed(2),
     }));
 
