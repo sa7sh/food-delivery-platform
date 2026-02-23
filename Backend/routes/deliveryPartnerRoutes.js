@@ -1,7 +1,8 @@
 import express from "express";
 import { protectDelivery } from "../middleware/deliveryAuthMiddleware.js";
 import Order from "../models/Order.js"; // Standard Order model
-// import DeliveryPartner from "../models/DeliveryPartner.js"; // If needed for profile updates
+import DeliveryPartner from "../models/DeliveryPartner.js";
+import upload from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
@@ -10,13 +11,22 @@ router.post("/status", protectDelivery, async (req, res) => {
     try {
         const { isOnline } = req.body;
 
-        // req.partner is set by protectDelivery middleware
-        req.partner.isOnline = isOnline;
-        await req.partner.save();
+        // Use findByIdAndUpdate to only modify isOnline — avoids triggering
+        // full-document validation (which fails for partners missing required fields)
+        const updated = await DeliveryPartner.findByIdAndUpdate(
+            req.partner._id,
+            { $set: { isOnline } },
+            { new: true, runValidators: false }
+        );
 
-        res.json({ success: true, isOnline: req.partner.isOnline, message: isOnline ? "You are now ONLINE" : "You are now OFFLINE" });
+        if (!updated) {
+            return res.status(404).json({ success: false, message: "Partner not found" });
+        }
+
+        res.json({ success: true, isOnline: updated.isOnline, message: isOnline ? "You are now ONLINE" : "You are now OFFLINE" });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error("Toggle status error:", error);
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 
@@ -27,20 +37,22 @@ router.get("/dashboard", protectDelivery, async (req, res) => {
         today.setHours(0, 0, 0, 0);
 
         // Filter orders for this partner that are completed and from today
+        // We use updatedAt to track when the earning was realized
         const todayOrders = await Order.find({
             deliveryPartnerId: req.partner._id,
             status: "completed",
-            createdAt: { $gte: today }
+            updatedAt: { $gte: today }
         });
 
-        const totalEarnings = todayOrders.reduce((sum, order) => sum + 50, 0); // Mock: Flat 50 per order for now
-        // In real app, order would have 'deliveryFee' field
+        // Use consistent fee
+        const DELIVERY_FEE = 40;
+        const totalEarnings = todayOrders.length * DELIVERY_FEE;
 
         res.json({
             success: true,
             earnings: totalEarnings,
             rides: todayOrders.length,
-            hours: 4.5, // Mock value
+            hours: 0, // Mock value, or implement shift tracking later
             isOnline: req.partner.isOnline
         });
     } catch (error) {
@@ -199,13 +211,41 @@ router.get("/orders/active", protectDelivery, async (req, res) => {
             items: activeOrder.items,
             status: activeOrder.status,
             totalAmount: activeOrder.totalAmount,
-            pay: "50" // Mock
+            pay: "40" // Matching fixed delivery fee
         };
 
         res.json({ success: true, activeOrder: formattedOrder });
 
     } catch (error) {
         res.status(500).json({ message: error.message });
+    }
+});
+
+// 7. Update Profile Image
+router.put("/profile/image", protectDelivery, upload.single('profileImage'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: "No image provided" });
+        }
+
+        const partner = await DeliveryPartner.findByIdAndUpdate(
+            req.partner._id,
+            { profileImage: req.file.path },
+            { new: true, runValidators: false }
+        );
+
+        if (!partner) {
+            return res.status(404).json({ success: false, message: "Partner not found" });
+        }
+
+        res.json({
+            success: true,
+            message: "Profile image updated successfully",
+            partner
+        });
+    } catch (error) {
+        console.error("Profile image upload error:", error);
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 

@@ -13,6 +13,7 @@ const DeliveryPartnerSchema = new mongoose.Schema({
   panNumber: { type: String, required: true },
 
   // Storage for local file paths or Cloudinary URLs
+  profileImage: { type: String, default: "" }, // Added for profile avatar
   aadhaarImage: { type: String, default: "" },
   panImage: { type: String, default: "" },
   rcImage: { type: String, default: "" }, // Added this for the RC Card
