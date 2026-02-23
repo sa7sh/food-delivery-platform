@@ -9,6 +9,8 @@ import {
   registerRestaurant,
   deleteRestaurantAccount,
   getRestaurantProfile, // Validate session via API
+  sendOtp,
+  verifyOtp,
 } from '../services/api';
 
 
@@ -20,7 +22,8 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [restaurant, setRestaurant] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Changed default to false for general requests
+  const [isInitialLoading, setIsInitialLoading] = useState(true); // New state for splash screen
   const [error, setError] = useState(null);
 
   // Check if user is already logged in (on app startup)
@@ -30,7 +33,7 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      setLoading(true);
+      setIsInitialLoading(true);
 
       // Create a timeout promise that rejects after 5 seconds
       const timeoutPromise = new Promise((_, reject) =>
@@ -63,7 +66,7 @@ export const AuthProvider = ({ children }) => {
       await AsyncStorage.removeItem('restaurantData');
     } finally {
       // Ensure specific delay to prevent flicker, then stop loading
-      setLoading(false);
+      setIsInitialLoading(false);
     }
   };
 
@@ -268,6 +271,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     restaurant,
     loading,
+    isInitialLoading,
     error,
     login,
     register,

@@ -10,10 +10,10 @@ import ReviewsScreen from '../screens/ReviewsScreen.js';
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, isInitialLoading } = useAuth();
 
   // Show loading screen while checking auth status
-  if (loading) {
+  if (isInitialLoading) {
     return <LoadingSpinner />;
   }
 
