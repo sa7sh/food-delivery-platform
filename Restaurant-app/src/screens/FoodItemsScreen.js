@@ -53,7 +53,7 @@ const FoodItemsScreen = ({ navigation }) => {
           />
         )}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} colors={[theme.primary]} />
         }
         ListEmptyComponent={
           <EmptyState

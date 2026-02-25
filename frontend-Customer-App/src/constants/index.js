@@ -18,6 +18,8 @@ export const API_ENDPOINTS = {
   SEND_OTP: '/auth/send-otp', // Added
   VERIFY_OTP: '/auth/verify-otp',
   FORGOT_PASSWORD: '/auth/forgot-password',
+  VERIFY_RESET_OTP: '/auth/verify-reset-otp',
+  RESET_PASSWORD: '/auth/reset-password',
   DELETE_ACCOUNT: '/auth/delete-account',
 
   // Restaurant

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, View, Text, TouchableOpacity, FlatList,
-  Switch, StatusBar, Dimensions, Alert
+  Switch, StatusBar, Dimensions, Alert, useColorScheme
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { useSocket } from '../context/SocketContext';
+import { useDeliveryAuthStore } from '../store/authStore';
 
 import { API_URL } from '../constants/Config';
 
@@ -18,7 +18,7 @@ const DRIVER_URL = `${API_BASE}/driver`;
 const ORDER_URL = `${API_BASE}/orders`;
 
 // Professional Order Card Component 
-const OrderCard = ({ restaurant, distance, pay, items, location, onAccept, timestamp }) => {
+const OrderCard = ({ restaurant, distance, pay, items, location, onAccept, onDelete, timestamp, theme }) => {
   const [timeLeft, setTimeLeft] = useState(0);
   const [expired, setExpired] = useState(false);
 
@@ -54,36 +54,40 @@ const OrderCard = ({ restaurant, distance, pay, items, location, onAccept, times
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  const colors = theme === 'dark' ? darkColors : lightColors;
+
   return (
-    <View style={[styles.card, expired && styles.cardExpired]}>
-      <View style={styles.cardHeader}>
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }, expired && styles.cardExpired]}>
+      {/* Header Faded when expired */}
+      <View style={[styles.cardHeader, expired && { opacity: 0.5 }]}>
         <View style={styles.brandInfo}>
-          <View style={[styles.iconCircle, expired && styles.iconCircleExpired]}>
+          <View style={[styles.iconCircle, { backgroundColor: theme === 'dark' ? '#2c1a36' : '#f5f0fa' }, expired && styles.iconCircleExpired]}>
             <MaterialCommunityIcons name="silverware-fork-knife" size={18} color={expired ? "#bdc3c7" : "#9139BA"} />
           </View>
           <View>
-            <Text style={[styles.restaurantName, expired && styles.textExpired]}>{restaurant}</Text>
-            <Text style={styles.locationText}>{location}</Text>
+            <Text style={[styles.restaurantName, { color: colors.text }, expired && styles.textExpired]}>{restaurant}</Text>
+            <Text style={[styles.locationText, { color: colors.subText }, expired && styles.textExpired]}>{location}</Text>
           </View>
         </View>
-        <View style={[styles.priceContainer, expired && styles.priceContainerExpired]}>
+        <View style={[styles.priceContainer, { backgroundColor: theme === 'dark' ? '#1e3a24' : '#ebf7ee' }, expired && styles.priceContainerExpired]}>
           <Text style={[styles.currencySymbol, expired && styles.textExpired]}>₹</Text>
           <Text style={[styles.priceText, expired && styles.textExpired]}>{pay}</Text>
         </View>
       </View>
 
-      <View style={styles.divider} />
+      <View style={[styles.divider, { backgroundColor: colors.border }, expired && { opacity: 0.5 }]} />
 
       <View style={styles.cardFooter}>
-        <View style={styles.metaRow}>
+        {/* Meta Row Faded when expired */}
+        <View style={[styles.metaRow, expired && { opacity: 0.5 }]}>
           <View style={styles.metaItem}>
-            <MaterialCommunityIcons name="map-marker-distance" size={16} color="#95a5a6" />
-            <Text style={styles.metaText}>{distance} km</Text>
+            <MaterialCommunityIcons name="map-marker-distance" size={16} color={colors.subText} />
+            <Text style={[styles.metaText, { color: colors.subText }]}>{distance} km</Text>
           </View>
-          <View style={styles.dotSeparator} />
+          <View style={[styles.dotSeparator, { backgroundColor: colors.border }]} />
           <View style={styles.metaItem}>
-            <MaterialCommunityIcons name="package-variant" size={16} color="#95a5a6" />
-            <Text style={styles.metaText}>{items} items</Text>
+            <MaterialCommunityIcons name="package-variant" size={16} color={colors.subText} />
+            <Text style={[styles.metaText, { color: colors.subText }]}>{items} items</Text>
           </View>
         </View>
 
@@ -94,25 +98,55 @@ const OrderCard = ({ restaurant, distance, pay, items, location, onAccept, times
             <MaterialCommunityIcons name="check-circle" size={16} color="#fff" />
           </TouchableOpacity>
         ) : (
-          <View style={styles.expiredBtn}>
-            <Text style={styles.expiredBtnText}>Expired</Text>
-          </View>
+          <TouchableOpacity style={[styles.expiredBtn, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]} onPress={onDelete} activeOpacity={0.8}>
+            <MaterialCommunityIcons name="delete-outline" size={16} color="#fff" style={{ marginRight: 4 }} />
+            <Text style={styles.expiredBtnText}>Remove</Text>
+          </TouchableOpacity>
         )}
       </View>
     </View>
   );
 };
 
+// Theme Colors
+const lightColors = {
+  background: '#fff',
+  card: '#fff',
+  text: '#2d3436',
+  subText: '#95a5a6',
+  border: '#f1f2f6',
+  navTitle: '#9139BA',
+  earningsBg: '#f8f9fa',
+};
+
+const darkColors = {
+  background: '#121212',
+  card: '#1e1e1e',
+  text: '#ffffff',
+  subText: '#b2bec3',
+  border: '#2c2c2c',
+  navTitle: '#bb86fc',
+  earningsBg: '#1a1a1a',
+};
+
 export default function HomeScreen({ navigation }) {
+  const colorScheme = useColorScheme();
+  const theme = colorScheme || 'light';
+  const colors = theme === 'dark' ? darkColors : lightColors;
+
+  const { token, hiddenOrderIds, hideOrder } = useDeliveryAuthStore();
   const [isOnline, setIsOnline] = useState(false);
   const [availableOrders, setAvailableOrders] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const handleDeleteExpired = (orderId) => {
+    hideOrder(orderId);
+  };
+
   // Fetch Orders
   const fetchOrders = async () => {
     try {
-      const token = await AsyncStorage.getItem('deliveryToken');
       console.log("Fetching orders with token:", token ? "Present" : "Missing"); // DEBUG
 
       if (!token) return;
@@ -148,7 +182,6 @@ export default function HomeScreen({ navigation }) {
   const toggleStatus = async (value) => {
     try {
       setIsOnline(value);
-      const token = await AsyncStorage.getItem('deliveryToken');
       if (token) {
         await axios.post(`${DRIVER_URL}/status`, { isOnline: value }, {
           headers: { Authorization: `Bearer ${token}` }
@@ -162,21 +195,32 @@ export default function HomeScreen({ navigation }) {
   };
 
   // Handle order acceptance
-  const handleAcceptOrder = async (orderId) => {
+  const handleAcceptOrder = async (item) => {
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem('deliveryToken');
       if (!token) return;
 
-      const response = await axios.patch(`${ORDER_URL}/${orderId}/delivery-accept`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      if (item.isBatch) {
+        const orderIds = item.orders.map(o => o._id);
+        const response = await axios.post(`${ORDER_URL}/delivery/accept-batch`, { orderIds }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
 
-      // Backend returns the updated order object directly
-      if (response.data && response.data._id) {
-        navigation.navigate('ActiveOrder', { orderId: orderId });
+        if (response.data && response.data.acceptedCount > 0) {
+          navigation.navigate('ActiveOrder', { isBatch: true, orderIds: orderIds, batchData: item });
+        } else {
+          Alert.alert("Failed", "Failed to accept batched orders");
+        }
       } else {
-        Alert.alert("Failed", "Failed to accept order");
+        const response = await axios.patch(`${ORDER_URL}/${item._id}/delivery-accept`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (response.data && response.data._id) {
+          navigation.navigate('ActiveOrder', { orderId: item._id });
+        } else {
+          Alert.alert("Failed", "Failed to accept order");
+        }
       }
     } catch (error) {
       console.log("Error accepting order:", error);
@@ -218,28 +262,30 @@ export default function HomeScreen({ navigation }) {
     }
   }, [socket]);
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+  const displayedOrders = availableOrders.filter(o => !hiddenOrderIds.includes(o._id));
 
-      <View style={styles.brandNav}>
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={theme === 'dark' ? "light-content" : "dark-content"} backgroundColor={colors.background} />
+
+      <View style={[styles.brandNav, { backgroundColor: colors.background }]}>
         <View>
-          <Text style={styles.logoText}>TREATO</Text>
+          <Text style={[styles.logoText, { color: colors.navTitle }]}>TREATO</Text>
           <View style={styles.statusIndicator}>
-            <View style={[styles.statusDot, { backgroundColor: isOnline ? '#2ecc71' : '#dfe6e9' }]} />
+            <View style={[styles.statusDot, { backgroundColor: isOnline ? '#2ecc71' : (theme === 'dark' ? '#333' : '#dfe6e9') }]} />
             <Text style={styles.statusSub}>{isOnline ? 'ACTIVE' : 'OFFLINE'}</Text>
           </View>
         </View>
 
         <View style={styles.navRight}>
           <TouchableOpacity style={styles.notifBtn}>
-            <MaterialCommunityIcons name="bell-outline" size={22} color="#2d3436" />
+            <MaterialCommunityIcons name="bell-outline" size={22} color={colors.text} />
             {isOnline && <View style={styles.notifBadge} />}
           </TouchableOpacity>
           <Switch
             value={isOnline}
             onValueChange={toggleStatus}
-            trackColor={{ false: "#eee", true: "#2ecc71" }}
+            trackColor={{ false: theme === 'dark' ? "#333" : "#eee", true: "#2ecc71" }}
             thumbColor="#fff"
           />
         </View>
@@ -247,51 +293,53 @@ export default function HomeScreen({ navigation }) {
 
       {isOnline ? (
         <>
-          <View style={styles.stickyWrapper}>
-            <TouchableOpacity style={styles.miniEarningsBar} activeOpacity={0.9}>
+          <View style={[styles.stickyWrapper, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+            <TouchableOpacity style={[styles.miniEarningsBar, { backgroundColor: colors.earningsBg, borderColor: colors.border }]} activeOpacity={0.9}>
               <View>
                 <Text style={styles.miniLabel}>TODAY'S PAYOUT</Text>
-                <Text style={styles.miniValue}>₹840.50</Text>
+                <Text style={[styles.miniValue, { color: colors.text }]}>₹840.50</Text>
               </View>
 
               <View style={styles.miniStatsRight}>
-                <View style={styles.pillStat}>
+                <View style={[styles.pillStat, { backgroundColor: colors.background, borderColor: colors.border }]}>
                   <MaterialCommunityIcons name="moped" size={14} color="#27ae60" />
-                  <Text style={styles.pillText}>12</Text>
+                  <Text style={[styles.pillText, { color: colors.text }]}>12</Text>
                 </View>
-                <View style={styles.pillStat}>
+                <View style={[styles.pillStat, { backgroundColor: colors.background, borderColor: colors.border }]}>
                   <MaterialCommunityIcons name="clock-outline" size={14} color="#27ae60" />
-                  <Text style={styles.pillText}>5.5h</Text>
+                  <Text style={[styles.pillText, { color: colors.text }]}>5.5h</Text>
                 </View>
-                <MaterialCommunityIcons name="chevron-right" size={20} color="#dfe6e9" />
+                <MaterialCommunityIcons name="chevron-right" size={20} color={colors.subText} />
               </View>
             </TouchableOpacity>
           </View>
 
           <FlatList
-            data={availableOrders}
+            data={displayedOrders}
             keyExtractor={(item) => item._id}
             ListHeaderComponent={() => (
               <View style={styles.taskHeader}>
                 <View>
-                  <Text style={styles.sectionTitle}>Available Tasks</Text>
-                  <Text style={styles.sectionSub}>Nearby opportunities</Text>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Available Tasks</Text>
+                  <Text style={[styles.sectionSub, { color: colors.subText }]}>Nearby opportunities</Text>
                 </View>
-                <View style={styles.countBadge}>
-                  <Text style={styles.countText}>{availableOrders.length} ORDERS</Text>
+                <View style={[styles.countBadge, { backgroundColor: colors.text }]}>
+                  <Text style={[styles.countText, { color: colors.background }]}>{displayedOrders.length} ORDERS</Text>
                 </View>
               </View>
             )}
             renderItem={({ item }) => (
               <View style={styles.cardPadding}>
                 <OrderCard
-                  restaurant={item.restaurantId?.name || "Unknown Restaurant"}
+                  restaurant={item.isBatch ? `BATCHED: ${item.batchSize} x ${item.restaurantId?.name || "Restaurant"}` : (item.restaurantId?.name || "Unknown Restaurant")}
                   distance="2.5" // Mock distance for now
                   pay={item.totalAmount}
-                  items={item.items?.length || 0}
+                  items={item.totalItemsCount || item.items?.length || 0}
                   location={item.restaurantId?.addresses?.[0]?.city || item.restaurantId?.addresses?.[0]?.street || "Location N/A"}
-                  onAccept={() => handleAcceptOrder(item._id)}
-                  timestamp={item.updatedAt || item.createdAt} // Use updatedAt if available, else createdAt
+                  onAccept={() => handleAcceptOrder(item)}
+                  onDelete={() => handleDeleteExpired(item._id)}
+                  timestamp={item.createdAt} // Use createdAt
+                  theme={theme}
                 />
               </View>
             )}
@@ -303,13 +351,13 @@ export default function HomeScreen({ navigation }) {
         </>
       ) : (
         <View style={styles.emptyState}>
-          <View style={styles.emptyIconCircle}>
-            <MaterialCommunityIcons name="lightning-bolt" size={40} color="#dfe6e9" />
+          <View style={[styles.emptyIconCircle, { backgroundColor: colors.earningsBg }]}>
+            <MaterialCommunityIcons name="lightning-bolt" size={40} color={colors.border} />
           </View>
-          <Text style={styles.emptyTitle}>You're Offline</Text>
-          <Text style={styles.emptySub}>Go online to start receiving delivery requests.</Text>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>You're Offline</Text>
+          <Text style={[styles.emptySub, { color: colors.subText }]}>Go online to start receiving delivery requests.</Text>
           <TouchableOpacity
-            style={styles.primaryBtn}
+            style={[styles.primaryBtn, { backgroundColor: colors.navTitle }]}
             onPress={() => toggleStatus(true)}
           >
             <Text style={styles.primaryBtnText}>GO ONLINE</Text>
@@ -460,16 +508,23 @@ const styles = StyleSheet.create({
   primaryBtn: { marginTop: 30, backgroundColor: '#9139BA', height: 54, borderRadius: 15, width: '100%', justifyContent: 'center', alignItems: 'center' },
   primaryBtnText: { color: '#fff', fontWeight: '900', fontSize: 15, letterSpacing: 1 },
   // Expired Styles
-  cardExpired: { opacity: 0.6, backgroundColor: '#f9f9f9' },
+  cardExpired: { backgroundColor: '#f9f9f9', borderColor: '#f1f2f6', borderWidth: 1 },
   iconCircleExpired: { backgroundColor: '#ecf0f1' },
   textExpired: { color: '#bdc3c7' },
   priceContainerExpired: { backgroundColor: '#ecf0f1' },
   timerText: { fontSize: 13, color: '#FFFFFF', fontWeight: 'bold', marginLeft: 6, textAlign: 'center' },
   expiredBtn: {
-    backgroundColor: '#bdc3c7',
-    paddingHorizontal: 16,
+    backgroundColor: '#ff4757', // Cleaner vibrant red
+    paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#ff7675', // Subtle lighter border
+    shadowColor: '#ff4757',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  expiredBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' }
+  expiredBtnText: { color: '#fff', fontSize: 13, fontWeight: '900', letterSpacing: 0.5, textTransform: 'uppercase' }
 });

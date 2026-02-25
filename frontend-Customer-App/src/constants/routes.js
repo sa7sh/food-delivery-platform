@@ -9,6 +9,8 @@ export const ROUTES = {
   REGISTER: 'Register',
   OTP_VERIFICATION: 'OTPVerification',
   FORGOT_PASSWORD: 'ForgotPassword',
+  RESET_PASSWORD_OTP: 'ResetPasswordOTP',
+  RESET_PASSWORD: 'ResetPassword',
 
   // Main Tabs
   HOME: 'Home',

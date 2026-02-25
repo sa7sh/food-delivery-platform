@@ -39,6 +39,9 @@ const DeliveryPartnerSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
   }],
   averageRating: { type: Number, default: 5.0 },
+  resetPasswordOtp: { type: String, select: false },
+  resetPasswordOtpExpiry: { type: Date, select: false },
+  isOtpVerified: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
 

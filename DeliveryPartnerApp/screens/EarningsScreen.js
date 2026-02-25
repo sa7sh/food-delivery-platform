@@ -1,22 +1,50 @@
 import React, { useState, useCallback } from 'react';
 import {
   StyleSheet, View, Text, ScrollView,
-  TouchableOpacity, FlatList, ActivityIndicator, RefreshControl
+  TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, useColorScheme
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
+import { useDeliveryAuthStore } from '../store/authStore';
 import { API_URL } from '../constants/Config';
 
+// Theme Colors
+const lightColors = {
+  background: '#fff',
+  card: '#fff',
+  text: '#2d3436',
+  subText: '#b2bec3',
+  border: '#f1f2f6',
+  chartBg: '#f8f9fa',
+  headerTitle: '#2d3436',
+  refreshBtn: '#f5f0fa',
+};
+
+const darkColors = {
+  background: '#121212',
+  card: '#1e1e1e',
+  text: '#ffffff',
+  subText: '#95a5a6',
+  border: '#2c2c2c',
+  chartBg: '#1a1a1a',
+  headerTitle: '#ffffff',
+  refreshBtn: '#2c1a36',
+};
+
 export default function EarningsScreen() {
+  const colorScheme = useColorScheme();
+  const theme = colorScheme || 'light';
+  const colors = theme === 'dark' ? darkColors : lightColors;
+
+  const { token } = useDeliveryAuthStore();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchEarnings = async () => {
     try {
-      const token = await AsyncStorage.getItem('deliveryToken');
+      if (!token) return;
       const response = await fetch(`${API_URL}/orders/delivery/my-earnings`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -72,7 +100,7 @@ export default function EarningsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#9139BA" />
         </View>
@@ -81,11 +109,11 @@ export default function EarningsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* HEADER */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Earnings</Text>
-        <TouchableOpacity style={styles.calendarBtn} onPress={onRefresh}>
+        <Text style={[styles.headerTitle, { color: colors.headerTitle }]}>Earnings</Text>
+        <TouchableOpacity style={[styles.calendarBtn, { backgroundColor: colors.refreshBtn }]} onPress={onRefresh}>
           <MaterialCommunityIcons name="refresh" size={20} color="#9139BA" />
           <Text style={styles.calendarText}>Refresh</Text>
         </TouchableOpacity>
@@ -120,8 +148,8 @@ export default function EarningsScreen() {
 
         {/* WEEKLY CHART */}
         <View style={styles.chartSection}>
-          <Text style={styles.sectionTitle}>Weekly Overview</Text>
-          <View style={styles.chartContainer}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Weekly Overview</Text>
+          <View style={[styles.chartContainer, { backgroundColor: colors.chartBg }]}>
             {(data?.weeklyData || []).map((item, index) => (
               <View key={index} style={styles.barWrapper}>
                 <Text style={styles.barAmount}>{item.amount > 0 ? `₹${item.amount}` : ''}</Text>
@@ -129,10 +157,11 @@ export default function EarningsScreen() {
                   style={[
                     styles.bar,
                     { height: `${getBarHeight(item.amount, maxAmount)}%` },
-                    item.amount === maxAmount && item.amount > 0 && styles.activeBar
+                    item.amount === maxAmount && item.amount > 0 && styles.activeBar,
+                    theme === 'dark' && item.amount !== maxAmount && { backgroundColor: '#333' }
                   ]}
                 />
-                <Text style={styles.barDay}>{item.day}</Text>
+                <Text style={[styles.barDay, { color: colors.subText }]}>{item.day}</Text>
               </View>
             ))}
           </View>
@@ -140,19 +169,35 @@ export default function EarningsScreen() {
 
         {/* RECENT ACTIVITY */}
         <View style={styles.activityHeader}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
           <Text style={styles.viewAll}>{data?.transactions?.length || 0} deliveries</Text>
         </View>
 
         {data?.transactions?.length === 0 ? (
           <View style={styles.emptyState}>
-            <MaterialCommunityIcons name="moped-outline" size={48} color="#dfe6e9" />
-            <Text style={styles.emptyText}>No completed deliveries yet</Text>
+            <MaterialCommunityIcons name="moped-outline" size={48} color={theme === 'dark' ? '#333' : '#dfe6e9'} />
+            <Text style={[styles.emptyText, { color: colors.subText }]}>No completed deliveries yet</Text>
           </View>
         ) : (
           <FlatList
             data={data?.transactions || []}
-            renderItem={renderTransaction}
+            renderItem={({ item }) => (
+              <View style={[styles.transactionCard, { borderBottomColor: colors.border }]}>
+                <View style={styles.transLeft}>
+                  <View style={[styles.iconCircle, { backgroundColor: colors.chartBg }]}>
+                    <MaterialCommunityIcons name="moped" size={20} color={colors.text} />
+                  </View>
+                  <View>
+                    <Text style={[styles.transStore, { color: colors.text }]}>{item.store}</Text>
+                    <Text style={[styles.transTime, { color: colors.subText }]}>{item.date} · {item.time}</Text>
+                  </View>
+                </View>
+                <View style={styles.transRight}>
+                  <Text style={styles.transAmount}>+₹{item.amount}</Text>
+                  <Text style={[styles.transStatus, { color: colors.subText }]}>COMPLETED</Text>
+                </View>
+              </View>
+            )}
             keyExtractor={item => item.id.toString()}
             scrollEnabled={false}
           />

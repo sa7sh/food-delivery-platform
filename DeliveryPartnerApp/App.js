@@ -12,6 +12,9 @@ import HomeScreen from './screens/HomeScreen';
 import ActiveOrderScreen from './screens/ActiveOrderScreen';
 import EarningsScreen from './screens/EarningsScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
+import ResetPasswordOtpScreen from './screens/ResetPasswordOtpScreen';
+import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { SocketProvider } from './context/SocketContext';
 import { useDeliveryAuthStore } from './store/authStore';
 
@@ -91,6 +94,9 @@ export default function App() {
           >
             {/* 1. AUTH SCREEN */}
             <Stack.Screen name="Auth" component={AuthScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <Stack.Screen name="ResetPasswordOtp" component={ResetPasswordOtpScreen} />
+            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
 
             {/* 2. MAIN TABS */}
             <Stack.Screen name="Main" component={MainTabs} />

@@ -177,7 +177,7 @@ const EditFoodScreen = ({ route, navigation }) => {
       <View style={styles.content}>
         {/* Image Picker */}
         <TouchableOpacity
-          style={[styles.imagePicker, { backgroundColor: theme.border }]}
+          style={[styles.imagePicker, { backgroundColor: isDarkMode ? '#1F2937' : '#E5E7EB', borderColor: theme.border }]}
           onPress={() => setShowImagePicker(true)}
         >
           {formData.imageUrl ? (
@@ -190,9 +190,9 @@ const EditFoodScreen = ({ route, navigation }) => {
             </>
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Ionicons name="camera-outline" size={48} color="#9CA3AF" />
-              <Text style={styles.imagePlaceholderText}>Add Food Image</Text>
-              <Text style={styles.imagePlaceholderSubtext}>
+              <Ionicons name="camera-outline" size={48} color={theme.subtext} />
+              <Text style={[styles.imagePlaceholderText, { color: theme.text }]}>Add Food Image</Text>
+              <Text style={[styles.imagePlaceholderSubtext, { color: theme.subtext }]}>
                 Tap to choose from gallery or camera
               </Text>
             </View>
@@ -258,7 +258,7 @@ const EditFoodScreen = ({ route, navigation }) => {
             placeholder="e.g., Butter Chicken"
             placeholderTextColor={theme.subtext}
           />
-          {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+          {errors.name && <Text style={[styles.errorText, { color: theme.primary }]}>{errors.name}</Text>}
         </View>
 
         <View style={styles.inputGroup}>
@@ -273,7 +273,7 @@ const EditFoodScreen = ({ route, navigation }) => {
             numberOfLines={3}
           />
           {errors.description && (
-            <Text style={styles.errorText}>{errors.description}</Text>
+            <Text style={[styles.errorText, { color: theme.primary }]}>{errors.description}</Text>
           )}
         </View>
 
@@ -287,7 +287,7 @@ const EditFoodScreen = ({ route, navigation }) => {
             placeholderTextColor={theme.subtext}
             keyboardType="decimal-pad"
           />
-          {errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
+          {errors.price && <Text style={[styles.errorText, { color: theme.primary }]}>{errors.price}</Text>}
         </View>
 
         <View style={styles.inputGroup}>
@@ -305,7 +305,7 @@ const EditFoodScreen = ({ route, navigation }) => {
               color="#6C757D"
             />
           </TouchableOpacity>
-          {errors.category && <Text style={styles.errorText}>{errors.category}</Text>}
+          {errors.category && <Text style={[styles.errorText, { color: theme.primary }]}>{errors.category}</Text>}
 
           {showCategoryPicker && (
             <View style={[styles.categoryList, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -356,7 +356,7 @@ const EditFoodScreen = ({ route, navigation }) => {
             <Switch
               value={formData.isVeg}
               onValueChange={(value) => handleChange('isVeg', value)}
-              trackColor={{ false: '#EF4444', true: '#22C55E' }}
+              trackColor={{ false: '#EF4444', true: theme.success }}
               thumbColor={formData.isVeg ? '#86EFAC' : '#FCA5A5'}
             />
           </View>

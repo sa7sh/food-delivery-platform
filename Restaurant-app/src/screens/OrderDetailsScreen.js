@@ -148,7 +148,7 @@ const OrderDetailsScreen = ({ route, navigation }) => {
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.card }]}>
+      <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color={theme.text} />
@@ -230,7 +230,7 @@ const OrderDetailsScreen = ({ route, navigation }) => {
             <Text style={[styles.infoLabel, { color: theme.subtext }]}>Method:</Text>
             <Text style={[styles.infoValue, { color: theme.text }]}>{order.paymentMethod}</Text>
           </View>
-          <View style={styles.totalRow}>
+          <View style={[styles.totalRow, { borderTopColor: theme.border }]}>
             <Text style={[styles.totalLabel, { color: theme.text }]}>Total:</Text>
             <Text style={[styles.totalValue, { color: theme.primary }]}>{formatCurrency(order.totalAmount)}</Text>
           </View>

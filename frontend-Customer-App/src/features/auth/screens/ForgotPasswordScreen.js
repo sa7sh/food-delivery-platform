@@ -15,6 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import { useAuthStore } from '../../../store';
+import { ROUTES } from '../../../constants';
 
 export default function ForgotPasswordScreen() {
   const navigation = useNavigation();
@@ -39,8 +40,8 @@ export default function ForgotPasswordScreen() {
     if (result.success) {
       Alert.alert(
         'Email Sent',
-        'If an account exists with this email, you will receive password reset instructions.',
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
+        'If an account exists with this email, you will receive a verification code.',
+        [{ text: 'OK', onPress: () => navigation.navigate(ROUTES.RESET_PASSWORD_OTP, { email }) }]
       );
     }
   };

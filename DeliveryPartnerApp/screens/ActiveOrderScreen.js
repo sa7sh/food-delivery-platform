@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Alert, ActivityIndicator, useColorScheme } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
-import axios from 'axios'; // Import axios
+import axios from 'axios';
+import { useDeliveryAuthStore } from '../store/authStore';
 
 import { API_URL } from '../constants/Config';
 
@@ -11,9 +11,50 @@ const { width, height } = Dimensions.get('window');
 const API_BASE = API_URL;
 const ORDER_URL = `${API_BASE}/orders`;
 
+// Theme Colors
+const lightColors = {
+  background: '#fff',
+  sheet: '#fff',
+  text: '#2d3436',
+  subText: '#95a5a6',
+  border: '#EEE',
+  badgeBg: '#f5f0fa',
+  badgeText: '#9139BA',
+  utilityBtn: '#F3F5F7',
+};
+
+const darkColors = {
+  background: '#121212',
+  sheet: '#1e1e1e',
+  text: '#ffffff',
+  subText: '#b2bec3',
+  border: '#2c2c2c',
+  badgeBg: '#2c1a36',
+  badgeText: '#bb86fc',
+  utilityBtn: '#2c2c2c',
+};
+
+// Map Style for Dark Mode
+const darkMapStyle = [
+  { "elementType": "geometry", "stylers": [{ "color": "#212121" }] },
+  { "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] },
+  { "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] },
+  { "elementType": "labels.text.stroke", "stylers": [{ "color": "#212121" }] },
+  { "featureType": "administrative", "elementType": "geometry", "stylers": [{ "color": "#757575" }] },
+  { "featureType": "poi", "elementType": "geometry", "stylers": [{ "color": "#181818" }] },
+  { "featureType": "road", "elementType": "geometry.fill", "stylers": [{ "color": "#2c2c2c" }] },
+  { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#000000" }] }
+];
+
 export default function ActiveOrderScreen({ navigation, route }) {
-  const { orderId } = route.params || {}; // Get orderId from params
-  const [order, setOrder] = useState(null); // Store full order details
+  const colorScheme = useColorScheme();
+  const theme = colorScheme || 'light';
+  const colors = theme === 'dark' ? darkColors : lightColors;
+
+  const { token } = useDeliveryAuthStore();
+  const { orderId, isBatch, orderIds } = route.params || {};
+  const [order, setOrder] = useState(null); // Reference order for restaurant details
+  const [orders, setOrders] = useState([]); // All orders in batch
   const [status, setStatus] = useState('ACCEPTED'); // Initial status when accepted
   const [timeLeft, setTimeLeft] = useState(60); // 60s timer
   const [loading, setLoading] = useState(false);
@@ -27,34 +68,55 @@ export default function ActiveOrderScreen({ navigation, route }) {
 
   const fetchOrderDetails = async () => {
     try {
-      const token = await AsyncStorage.getItem('deliveryToken');
-      const response = await axios.get(`${ORDER_URL}/${orderId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      if (!token) return;
 
-      const orderData = response.data;
-      setOrder(orderData);
+      if (isBatch && orderIds) {
+        const responses = await Promise.all(
+          orderIds.map(id => axios.get(`${ORDER_URL}/${id}/delivery-view`, { headers: { Authorization: `Bearer ${token}` } }))
+        );
+        const fetchedOrders = responses.map(res => res.data);
+        setOrders(fetchedOrders);
+        setOrder(fetchedOrders[0]);
 
-      if (orderData.status === 'reached_restaurant') {
-        setStatus('REACHED');
-        clearInterval(timerRef.current);
-      } else if (order.status === 'out_for_delivery') {
-        setStatus('PICKED_UP');
-        clearInterval(timerRef.current);
-      } else if (order.status === 'ready' || order.status === 'driver_assigned') {
-        setStatus('ACCEPTED');
+        const firstStatus = fetchedOrders[0].status;
+        if (firstStatus === 'reached_restaurant') {
+          setStatus('REACHED');
+          clearInterval(timerRef.current);
+        } else if (firstStatus === 'order_picked' || firstStatus === 'out_for_delivery') {
+          setStatus('PICKED_UP');
+          clearInterval(timerRef.current);
+        } else {
+          setStatus('ACCEPTED');
+        }
+      } else {
+        const response = await axios.get(`${ORDER_URL}/${orderId}/delivery-view`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const orderData = response.data;
+        setOrder(orderData);
+        setOrders([orderData]);
+
+        if (orderData.status === 'reached_restaurant') {
+          setStatus('REACHED');
+          clearInterval(timerRef.current);
+        } else if (orderData.status === 'order_picked' || orderData.status === 'out_for_delivery') {
+          setStatus('PICKED_UP');
+          clearInterval(timerRef.current);
+        } else {
+          setStatus('ACCEPTED');
+        }
       }
     } catch (error) {
-      console.log("Error fetching order details:", error);
+      console.log("Error fetching order details:", error?.response?.data || error.message);
     }
   };
 
   const handleAutoCancel = async () => {
     try {
       Alert.alert("Timeout", "You didn't reach the restaurant in time. Order cancelled.");
-      const token = await AsyncStorage.getItem('deliveryToken');
+      if (!token) return;
       // Cancel order via API
-      await axios.patch(`${ORDER_URL}/${orderId}/status`, // This might need update if I only allow logic via delivery endpoints, but keeping generic for cancel if exists
+      await axios.patch(`${ORDER_URL}/${orderId}/status`,
         { status: 'cancelled' },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -68,15 +130,15 @@ export default function ActiveOrderScreen({ navigation, route }) {
   const markReachedRestaurant = async () => {
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem('deliveryToken');
+      if (!token) return;
 
-      // Call API to update status
-      await axios.patch(`${ORDER_URL}/${orderId}/delivery-reached`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      if (isBatch && orderIds) {
+        await axios.post(`${ORDER_URL}/delivery/batch-reached`, { orderIds }, { headers: { Authorization: `Bearer ${token}` } });
+      } else {
+        await axios.patch(`${ORDER_URL}/${orderId}/delivery-reached`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      }
 
-      clearInterval(timerRef.current); // Stop timer
+      clearInterval(timerRef.current);
       setStatus('REACHED');
       Alert.alert("Success", "You have reached the restaurant!");
     } catch (error) {
@@ -90,13 +152,13 @@ export default function ActiveOrderScreen({ navigation, route }) {
   const markPickedUp = async () => {
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem('deliveryToken');
+      if (!token) return;
 
-      // Call API to update status
-      await axios.patch(`${ORDER_URL}/${orderId}/delivery-pickup`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      if (isBatch && orderIds) {
+        await axios.post(`${ORDER_URL}/delivery/batch-pickup`, { orderIds }, { headers: { Authorization: `Bearer ${token}` } });
+      } else {
+        await axios.patch(`${ORDER_URL}/${orderId}/delivery-pickup`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      }
 
       setStatus('PICKED_UP');
       Alert.alert("Success", "Order Picked Up! Head to delivery location.");
@@ -111,11 +173,16 @@ export default function ActiveOrderScreen({ navigation, route }) {
   const markDelivered = async () => {
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem('deliveryToken');
-      await axios.patch(`${ORDER_URL}/${orderId}/delivery-complete`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      if (!token) return;
+
+      if (isBatch && orderIds) {
+        await Promise.all(orderIds.map(id =>
+          axios.patch(`${ORDER_URL}/${id}/delivery-complete`, {}, { headers: { Authorization: `Bearer ${token}` } })
+        ));
+      } else {
+        await axios.patch(`${ORDER_URL}/${orderId}/delivery-complete`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      }
+
       Alert.alert("Success", "Delivery Completed!");
       navigation.goBack();
     } catch (error) {
@@ -127,11 +194,11 @@ export default function ActiveOrderScreen({ navigation, route }) {
   };
 
   return (
-    <View style={styles.container}>
-      {/* 1. THE MAP VIEW */}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* 1. THE MAP VIEW */}
       <MapView
         style={styles.map}
+        customMapStyle={theme === 'dark' ? darkMapStyle : []}
         initialRegion={{
           latitude: order?.deliveryLocation?.latitude || 19.0760,
           longitude: order?.deliveryLocation?.longitude || 72.8777,
@@ -150,24 +217,27 @@ export default function ActiveOrderScreen({ navigation, route }) {
           <MaterialCommunityIcons name="store" size={35} color="#9139BA" />
         </Marker>
 
-        {/* Customer Marker */}
-        <Marker
-          coordinate={{
-            latitude: order?.deliveryLocation?.latitude || 19.0820,
-            longitude: order?.deliveryLocation?.longitude || 72.8820
-          }}
-          title={order?.customer?.name || "Customer"}
-        >
-          <MaterialCommunityIcons name="map-marker-radius" size={35} color="#2ecc71" />
-        </Marker>
+        {/* Customer Markers */}
+        {orders.map((ord, idx) => (
+          <Marker
+            key={`customer-${idx}`}
+            coordinate={{
+              latitude: ord?.deliveryLocation?.latitude || 19.0820 + (idx * 0.005),
+              longitude: ord?.deliveryLocation?.longitude || 72.8820 + (idx * 0.005)
+            }}
+            title={ord?.customer?.name || `Customer ${idx + 1}`}
+          >
+            <MaterialCommunityIcons name="map-marker-radius" size={35} color="#2ecc71" />
+          </Marker>
+        ))}
       </MapView>
 
       {/* 2. DELIVERY INFO SHEET */}
-      <View style={styles.infoSheet}>
+      <View style={[styles.infoSheet, { backgroundColor: colors.sheet }]}>
         <View style={styles.dragHandle} />
 
         <View style={styles.headerRow}>
-          <Text style={styles.statusBadge}>
+          <Text style={[styles.statusBadge, { backgroundColor: colors.badgeBg, color: colors.badgeText }]}>
             {status === 'ACCEPTED' ? 'RUSH TO RESTAURANT' : status === 'REACHED' ? 'PICK UP ORDER' : 'DELIVERING ORDER'}
           </Text>
         </View>
@@ -175,25 +245,30 @@ export default function ActiveOrderScreen({ navigation, route }) {
         <View style={styles.addressBox}>
           <View style={styles.iconColumn}>
             <View style={[styles.dot, { backgroundColor: '#e74c3c' }]} />
-            <View style={styles.line} />
+            <View style={[styles.line, { backgroundColor: colors.border }]} />
             <View style={[styles.dot, { backgroundColor: '#2ecc71' }]} />
           </View>
 
           <View style={styles.textColumn}>
-            <Text style={styles.locationTitle}>{order?.restaurantId?.name || "Restaurant"}</Text>
-            <Text style={styles.locationSub}>
+            <Text style={[styles.locationTitle, { color: colors.text }]}>{order?.restaurantId?.name || "Restaurant"}</Text>
+            <Text style={[styles.locationSub, { color: colors.subText }]}>
               {order?.restaurantId?.addresses?.[0]?.street || order?.restaurantId?.addresses?.[0]?.city || "Location N/A"}
             </Text>
-            <View style={{ height: 25 }} />
-            <Text style={styles.locationTitle}>{order?.customer?.name || "Customer"}</Text>
-            <Text style={styles.locationSub}>{order?.deliveryAddress || "Delivery Address N/A"}</Text>
+
+            {orders.map((ord, idx) => (
+              <View key={`info-${idx}`}>
+                <View style={{ height: 15 }} />
+                <Text style={[styles.locationTitle, { color: colors.text }]}>{ord?.customer?.name || `Customer ${idx + 1}`}</Text>
+                <Text style={[styles.locationSub, { color: colors.subText }]}>{ord?.deliveryAddress || "Delivery Address N/A"}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
         {/* 3. ACTION BUTTONS */}
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.utilityButton}>
-            <MaterialCommunityIcons name="phone" size={24} color="#333" />
+          <TouchableOpacity style={[styles.utilityButton, { backgroundColor: colors.utilityBtn }]}>
+            <MaterialCommunityIcons name="phone" size={24} color={colors.text} />
           </TouchableOpacity>
 
           {loading ? (

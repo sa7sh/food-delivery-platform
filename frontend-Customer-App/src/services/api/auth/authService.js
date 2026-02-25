@@ -30,8 +30,19 @@ export const authService = {
   // Forgot Password
   async forgotPassword(data) {
     // data: { email }
-    // TODO: Replace with actual API call
     return httpClient.post(API_ENDPOINTS.FORGOT_PASSWORD, data);
+  },
+
+  // Verify Reset OTP
+  async verifyResetOTP(data) {
+    // data: { email, otp }
+    return httpClient.post(API_ENDPOINTS.VERIFY_RESET_OTP, data);
+  },
+
+  // Reset Password
+  async resetPassword(data) {
+    // data: { email, password }
+    return httpClient.post(API_ENDPOINTS.RESET_PASSWORD, data);
   },
 
   // Delete Account

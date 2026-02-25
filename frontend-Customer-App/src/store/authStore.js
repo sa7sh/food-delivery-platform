@@ -72,6 +72,32 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  // Verify Reset OTP
+  verifyResetOTP: async (data) => {
+    try {
+      set({ isLoading: true, error: null });
+      await authService.verifyResetOTP(data);
+      set({ isLoading: false });
+      return { success: true };
+    } catch (error) {
+      set({ isLoading: false, error: error.message });
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Reset Password
+  resetPassword: async (data) => {
+    try {
+      set({ isLoading: true, error: null });
+      await authService.resetPassword(data);
+      set({ isLoading: false });
+      return { success: true };
+    } catch (error) {
+      set({ isLoading: false, error: error.message });
+      return { success: false, error: error.message };
+    }
+  },
+
   // Login
   login: async (credentials) => {
     try {

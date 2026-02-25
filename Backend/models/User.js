@@ -79,6 +79,18 @@ const userSchema = new mongoose.Schema(
       default: 0,
       select: false,
     },
+    resetPasswordOtp: {
+      type: String,
+      select: false,
+    },
+    resetPasswordOtpExpiry: {
+      type: Date,
+      select: false,
+    },
+    isOtpVerified: {
+      type: Boolean,
+      default: false,
+    },
     favorites: [
       {
         type: mongoose.Schema.Types.ObjectId,

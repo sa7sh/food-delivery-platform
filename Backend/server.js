@@ -12,6 +12,7 @@ import analyticsRoutes from "./routes/analyticsRoutes.js";
 import deliveryAppAuthRoutes from "./routes/deliveryAppAuthRoutes.js";
 import deliveryPartnerRoutes from "./routes/deliveryPartnerRoutes.js";
 import deliveryRatingRoutes from "./routes/deliveryRatingRoutes.js";
+import passwordResetRoutes from "./routes/passwordResetRoutes.js";
 import errorHandler from "./middleware/errorHandler.js";
 import { initSocketService } from "./services/socketService.js";
 
@@ -122,6 +123,7 @@ app.use("/api", apiRoutes);
 
 // Auth routes (with limiter) - more specific path
 app.use("/api/auth", authLimiter, apiRoutes);
+app.use("/api/auth", authLimiter, passwordResetRoutes);
 
 // Delivery Partner Auth
 app.use(deliveryAppAuthRoutes);

@@ -90,7 +90,7 @@ const OrdersScreen = ({ navigation }) => {
           <OrderCard order={item} onPress={handleOrderPress} />
         )}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} colors={[theme.primary]} />
         }
         ListEmptyComponent={
           <EmptyState
@@ -129,15 +129,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginRight: 8,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
   },
   filterTabActive: {
-    backgroundColor: '#9139BA',
+    // backgroundColor handled inline
   },
   filterText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6C757D',
   },
   filterTextActive: {
     color: '#FFFFFF',

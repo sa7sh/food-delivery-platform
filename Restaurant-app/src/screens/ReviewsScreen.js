@@ -191,6 +191,14 @@ export default function ReviewsScreen() {
             keyExtractor={(item) => item._id}
             renderItem={activeTab === 'restaurant' ? renderRestaurantReview : renderFoodItemReview}
             contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={loading}
+                onRefresh={fetchReviews}
+                tintColor={theme.primary}
+                colors={[theme.primary]}
+              />
+            }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Ionicons name="chatbubble-ellipses-outline" size={64} color={theme.border} />

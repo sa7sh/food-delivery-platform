@@ -22,6 +22,7 @@ export const useDeliveryAuthStore = create(
       token: null,
       deliveryPartner: null,
       isAuthenticated: false,
+      hiddenOrderIds: [], // Stores IDs of tasks user has "Removed"
       hasHydrated: false, // true once AsyncStorage rehydration is complete
 
       // ─── Actions ────────────────────────────────────────────────────────────
@@ -32,7 +33,15 @@ export const useDeliveryAuthStore = create(
 
       /** Called on logout — clears all auth state and AsyncStorage entry */
       logout: () =>
-        set({ token: null, deliveryPartner: null, isAuthenticated: false }),
+        set({ token: null, deliveryPartner: null, isAuthenticated: false, hiddenOrderIds: [] }),
+
+      /** Permanently hide an order from the available tasks list */
+      hideOrder: (orderId) =>
+        set((state) => ({
+          hiddenOrderIds: state.hiddenOrderIds.includes(orderId)
+            ? state.hiddenOrderIds
+            : [...state.hiddenOrderIds, orderId]
+        })),
 
       /**
        * Merge fresh profile data from the backend into the stored partner object.
@@ -56,6 +65,7 @@ export const useDeliveryAuthStore = create(
         token: state.token,
         deliveryPartner: state.deliveryPartner,
         isAuthenticated: state.isAuthenticated,
+        hiddenOrderIds: state.hiddenOrderIds,
       }),
       onRehydrateStorage: () => (state) => {
         // Called when AsyncStorage read completes (state is null on very first launch)

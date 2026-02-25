@@ -158,7 +158,7 @@ router.get("/restaurant", protect, async (req, res) => {
 });
 
 
-// Get Order Details
+// Get Order Details (Customer / Restaurant)
 router.get("/:id", protect, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
@@ -179,6 +179,21 @@ router.get("/:id", protect, async (req, res) => {
       return res.status(403).json({ message: "Not authorized to view this order" });
     }
 
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get Order Details (Delivery Partner) — uses deliveryAuth middleware
+router.get("/:id/delivery-view", protectDelivery, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate("restaurantId", "name phone addresses")
+      .populate("customerId", "name phone");
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -262,12 +277,78 @@ router.post("/:id/cancel", protect, async (req, res) => {
 // DELIVERY PARTNER ROUTES
 // ==========================================
 
+// Helper to group orders into batches
+const groupOrdersIntoBatches = (orders) => {
+  const batches = [];
+  const processedOrds = new Set();
+  const DISTANCE_THRESHOLD = 0.05; // ~5km roughly in degrees
+
+  orders.forEach((order, index) => {
+    if (processedOrds.has(order._id.toString())) return;
+
+    // Start a new batch
+    const currentBatch = [order];
+    processedOrds.add(order._id.toString());
+
+    // Look for matching orders
+    for (let i = index + 1; i < orders.length; i++) {
+      const candidate = orders[i];
+      if (processedOrds.has(candidate._id.toString())) continue;
+
+      // Grouping logic: Same restaurant AND close delivery location
+      if (
+        order.restaurantId && candidate.restaurantId &&
+        order.restaurantId._id.toString() === candidate.restaurantId._id.toString()
+      ) {
+        // Compare locations
+        const lat1 = order.deliveryLocation?.latitude;
+        const lon1 = order.deliveryLocation?.longitude;
+        const lat2 = candidate.deliveryLocation?.latitude;
+        const lon2 = candidate.deliveryLocation?.longitude;
+
+        if (lat1 && lon1 && lat2 && lon2) {
+          const latDiff = Math.abs(lat1 - lat2);
+          const lonDiff = Math.abs(lon1 - lon2);
+          // Simple grouping if within threshold
+          if (latDiff < DISTANCE_THRESHOLD && lonDiff < DISTANCE_THRESHOLD) {
+            currentBatch.push(candidate);
+            processedOrds.add(candidate._id.toString());
+          }
+        }
+      }
+    }
+
+    if (currentBatch.length > 1) {
+      // Calculate total amount
+      const totalAmount = currentBatch.reduce((sum, o) => sum + o.totalAmount, 0);
+      const totalItemsCount = currentBatch.reduce((count, o) => count + o.items.length, 0);
+
+      batches.push({
+        _id: `batch_${currentBatch.map(o => o._id).join('_')}`,
+        isBatch: true,
+        restaurantId: currentBatch[0].restaurantId,
+        orders: currentBatch, // The full array of orders
+        totalAmount,
+        totalItemsCount,
+        batchSize: currentBatch.length,
+        status: "ready", // Global batch status
+        createdAt: currentBatch[0].createdAt
+      });
+    } else {
+      // Push as single object, but we won't wrap it if not needed? 
+      // Actually let's return it exactly like a normal order so old code doesn't break.
+      batches.push(order);
+    }
+  });
+
+  return batches;
+};
+
 // Get Available Orders for Delivery (Status: Ready)
 router.get("/delivery/available", protectDelivery, async (req, res) => {
   try {
     console.log("[OrderRoutes] GET /delivery/available hit");
-    // Ideally should be protected, but for now open or separate auth
-    const orders = await Order.find({
+    const readyOrders = await Order.find({
       status: "ready",
       deliveryPartnerId: null
     })
@@ -275,8 +356,10 @@ router.get("/delivery/available", protectDelivery, async (req, res) => {
       .populate("customerId", "name phone addresses")
       .sort({ createdAt: -1 });
 
-    console.log(`[OrderRoutes] Found ${orders.length} available orders for delivery`);
-    res.json(orders);
+    const groupedOrders = groupOrdersIntoBatches(readyOrders);
+
+    console.log(`[OrderRoutes] Found ${readyOrders.length} raw orders, grouped into ${groupedOrders.length} tasks`);
+    res.json(groupedOrders);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -362,14 +445,6 @@ router.patch("/:id/delivery-accept", protectDelivery, async (req, res) => {
     }
 
     order.deliveryPartnerId = deliveryPartnerId;
-    // Status remains "ready" until picked up? Or "accepted_by_driver"? 
-    // User said "Order Picked" step.
-    // Let's keep it "ready" but assigned, or maybe "driver_assigned".
-    // For now, let's keep it "ready" or maybe "driver_assigned" if we want to lock it.
-    // But simplest flow: Driver accepts -> UI shows "Go to Restaurant".
-    // Then Driver clicks "Picked Up" -> Status "out_for_delivery".
-
-    // Let's just save the ID.
     await order.save();
 
     // Notify Restaurant
@@ -383,6 +458,83 @@ router.patch("/:id/delivery-accept", protectDelivery, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+// ==========================================
+// BATched STATUS UPDATES
+// ==========================================
+
+// Accept Batch
+router.post("/delivery/accept-batch", protectDelivery, async (req, res) => {
+  try {
+    const { orderIds } = req.body;
+    const deliveryPartnerId = req.partner._id;
+
+    if (!orderIds || !Array.isArray(orderIds)) return res.status(400).json({ message: "Invalid orderIds array" });
+
+    const updatedOrders = await Promise.all(orderIds.map(async (id) => {
+      const order = await Order.findById(id);
+      if (order && order.status === "ready" && !order.deliveryPartnerId) {
+        order.deliveryPartnerId = deliveryPartnerId;
+        await order.save();
+
+        const io = req.app.get("socketio");
+        if (io) io.to(`restaurant_${order.restaurantId}`).emit("orderDeliveryAccepted", order);
+        return order;
+      }
+      return null;
+    }));
+
+    res.json({ message: "Batch accepted", acceptedCount: updatedOrders.filter(Boolean).length });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Batch Reached Restaurant
+router.post("/delivery/batch-reached", protectDelivery, async (req, res) => {
+  try {
+    const { orderIds } = req.body;
+    await Promise.all(orderIds.map(async (id) => {
+      const order = await Order.findById(id);
+      if (order && order.deliveryPartnerId?.toString() === req.partner._id.toString()) {
+        order.status = "reached_restaurant";
+        order.timeline.push({ status: "reached_restaurant", description: "Delivery partner reached restaurant" });
+        await order.save();
+        const io = req.app.get("socketio");
+        if (io) io.to(`restaurant_${order.restaurantId}`).emit("orderUpdated", order);
+      }
+    }));
+    res.json({ message: "Batch reached restaurant" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Batch Picked Up
+router.post("/delivery/batch-pickup", protectDelivery, async (req, res) => {
+  try {
+    const { orderIds } = req.body;
+    await Promise.all(orderIds.map(async (id) => {
+      const order = await Order.findById(id);
+      if (order && order.deliveryPartnerId?.toString() === req.partner._id.toString()) {
+        order.status = "out_for_delivery";
+        order.timeline.push({ status: "out_for_delivery", description: "Picked up by delivery partner" });
+        await order.save();
+        const io = req.app.get("socketio");
+        if (io) {
+          if (order.customerId) io.to(`customer_${order.customerId}`).emit("orderStatusUpdated", { orderId: order._id, status: "out_for_delivery" });
+          io.to(`restaurant_${order.restaurantId}`).emit("orderUpdated", order);
+        }
+      }
+    }));
+    res.json({ message: "Batch out for delivery" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Complete Delivery (Single order inside a batch, driver marks as they drop off)
+// Can keep the existing PATCH /:id/delivery-complete for this.
 
 // Reached Restaurant
 router.patch("/:id/delivery-reached", protectDelivery, async (req, res) => {

@@ -11,6 +11,9 @@ import {
   getRestaurantProfile, // Validate session via API
   sendOtp,
   verifyOtp,
+  forgotPassword,
+  verifyResetOtp,
+  resetPassword,
 } from '../services/api';
 
 
@@ -267,6 +270,55 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Forgot Password Flow
+  const handleForgotPassword = async (email) => {
+    try {
+      setLoading(true);
+      setError(null);
+      await forgotPassword(email);
+      return { success: true };
+    } catch (err) {
+      console.error('Forgot password error:', err);
+      const errorMessage = err.response?.data?.message || 'Failed to send reset link';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyResetOtp = async (email, otp) => {
+    try {
+      setLoading(true);
+      setError(null);
+      await verifyResetOtp(email, otp);
+      return { success: true };
+    } catch (err) {
+      console.error('Verify reset OTP error:', err);
+      const errorMessage = err.response?.data?.message || 'Invalid OTP';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (email, password) => {
+    try {
+      setLoading(true);
+      setError(null);
+      await resetPassword(email, password);
+      return { success: true };
+    } catch (err) {
+      console.error('Reset password error:', err);
+      const errorMessage = err.response?.data?.message || 'Failed to reset password';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const value = {
     isAuthenticated,
     restaurant,
@@ -280,6 +332,9 @@ export const AuthProvider = ({ children }) => {
     updateRestaurantData,
     sendOTP,
     verifyOTP,
+    handleForgotPassword,
+    handleVerifyResetOtp,
+    handleResetPassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

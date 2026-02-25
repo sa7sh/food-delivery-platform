@@ -56,7 +56,18 @@ logs
 *.swo
 *~
 
-# Exclude other folders (only push frontend-Customer-App and Backend)
+# Exclude other specific legacy folders (if they still exist)
 frontend/
 frontend-Restaurant-App/
 RestaurantPartnerExpo/
+
+# Ensure sub-project dependencies and env files are ignored
+**/node_modules/
+**/.expo/
+**/.env
+**/*.log
+**/dist/
+**/build/
+**/web-build/
+**/ios
+**/android

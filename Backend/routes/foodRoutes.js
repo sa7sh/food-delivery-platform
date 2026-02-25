@@ -13,7 +13,7 @@ const router = express.Router();
 /* Customer → GET ALL FOODS */
 router.get("/", async (req, res) => {
   try {
-    const foods = await FoodItem.find({ isAvailable: true })
+    const foods = await FoodItem.find({})
       .populate('restaurantId', 'name profileImage cuisineType address')
       .sort({ createdAt: -1 });
     res.json(foods);
@@ -26,7 +26,7 @@ router.get("/", async (req, res) => {
 router.get("/latest", async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
-    const foods = await FoodItem.find({ isAvailable: true })
+    const foods = await FoodItem.find({})
       .populate('restaurantId', 'name profileImage cuisineType address')
       .sort({ createdAt: -1 })
       .limit(limit);
@@ -41,8 +41,7 @@ router.get("/search", async (req, res) => {
   try {
     const { query, isOpen } = req.query;
     let dbQuery = {
-      name: { $regex: query, $options: "i" },
-      isAvailable: true
+      name: { $regex: query, $options: "i" }
     };
 
     const foods = await FoodItem.find(dbQuery)
@@ -65,8 +64,7 @@ router.get("/restaurant/:restaurantId", async (req, res) => {
   try {
     const { restaurantId } = req.params;
     const foods = await FoodItem.find({
-      restaurantId: restaurantId,
-      isAvailable: true
+      restaurantId: restaurantId
     }).sort({ createdAt: -1 });
 
     res.json(foods);

@@ -79,12 +79,12 @@ const DashboardScreen = ({ navigation }) => {
   const recentOrders = orders.slice(0, 3);
 
   return (
-    <View style={[styles.container, { backgroundColor: '#F9FAFB' }]}>
-      {/* Header - Clean White */}
-      <View style={[styles.header, { backgroundColor: '#C9A6DB' }]}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Header - Purple variant or theme primary */}
+      <View style={[styles.header, { backgroundColor: isDarkMode ? '#2D1A3B' : '#C9A6DB', borderBottomColor: theme.border }]}>
         <View>
-          <Text style={styles.restaurantName}>Treato Partner</Text>
-          <Text style={styles.dateText}>
+          <Text style={[styles.restaurantName, { color: isDarkMode ? '#FFFFFF' : '#111827' }]}>Treato Partner</Text>
+          <Text style={[styles.dateText, { color: isDarkMode ? '#D1D5DB' : '#6B7280' }]}>
             {new Date().toLocaleDateString('en-US', {
               weekday: 'long',
               month: 'short',
@@ -95,7 +95,7 @@ const DashboardScreen = ({ navigation }) => {
         <CustomToggle
           value={restaurant?.isOpen}
           onValueChange={handleToggleStatus}
-          trackColor={{ false: '#E5E7EB', true: '#22C55E' }}
+          trackColor={{ false: theme.border, true: theme.success }}
         />
       </View>
 
@@ -105,22 +105,22 @@ const DashboardScreen = ({ navigation }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#9139BA"
-            colors={['#9139BA']}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
           />
         }
         showsVerticalScrollIndicator={false}
       >
         {/* Status Card */}
         <View style={styles.section}>
-          <View style={[styles.statusCard, { borderColor: restaurant?.isOpen ? '#22C55E' : '#EF4444' }]}>
+          <View style={[styles.statusCard, { backgroundColor: theme.card, borderColor: restaurant?.isOpen ? theme.success : theme.error }]}>
             <View style={styles.statusInfo}>
-              <View style={[styles.statusDot, { backgroundColor: restaurant?.isOpen ? '#22C55E' : '#EF4444' }]} />
-              <Text style={styles.statusText}>
+              <View style={[styles.statusDot, { backgroundColor: restaurant?.isOpen ? theme.success : theme.error }]} />
+              <Text style={[styles.statusText, { color: theme.text }]}>
                 {restaurant?.isOpen ? 'Restaurant is Open' : 'Restaurant is Closed'}
               </Text>
             </View>
-            <Text style={styles.statusSubtext}>
+            <Text style={[styles.statusSubtext, { color: theme.subtext }]}>
               {restaurant?.isOpen ? 'You are receiving orders' : 'Go online to start receiving orders'}
             </Text>
           </View>
@@ -128,55 +128,55 @@ const DashboardScreen = ({ navigation }) => {
 
         {/* Stats Grid - 2x2 */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Overview</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Overview</Text>
           <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <View style={[styles.iconContainer, { backgroundColor: '#F3E8FF' }]}>
-                <Ionicons name="cash" size={24} color="#9139BA" />
+            <View style={[styles.statCard, { backgroundColor: theme.card }]}>
+              <View style={[styles.iconContainer, { backgroundColor: isDarkMode ? '#4C1D9533' : '#F3E8FF' }]}>
+                <Ionicons name="cash" size={24} color={theme.primary} />
               </View>
               <View>
-                <Text style={styles.statLabel}>Revenue</Text>
-                <Text style={styles.statValue}>{formatCurrency(displayRevenue)}</Text>
+                <Text style={[styles.statLabel, { color: theme.subtext }]}>Revenue</Text>
+                <Text style={[styles.statValue, { color: theme.text }]}>{formatCurrency(displayRevenue)}</Text>
               </View>
             </View>
 
-            <View style={styles.statCard}>
-              <View style={[styles.iconContainer, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="star" size={24} color="#D97706" />
+            <View style={[styles.statCard, { backgroundColor: theme.card }]}>
+              <View style={[styles.iconContainer, { backgroundColor: isDarkMode ? '#92400E33' : '#FEF3C7' }]}>
+                <Ionicons name="star" size={24} color={theme.warning} />
               </View>
               <View>
-                <Text style={styles.statLabel}>Rating</Text>
-                <Text style={styles.statValue}>{analytics?.averageRating ? parseFloat(analytics.averageRating).toFixed(1) : 'New'}</Text>
+                <Text style={[styles.statLabel, { color: theme.subtext }]}>Rating</Text>
+                <Text style={[styles.statValue, { color: theme.text }]}>{analytics?.averageRating ? parseFloat(analytics.averageRating).toFixed(1) : 'New'}</Text>
               </View>
             </View>
 
-            <View style={styles.statCard}>
-              <View style={[styles.iconContainer, { backgroundColor: '#E0F2FE' }]}>
+            <View style={[styles.statCard, { backgroundColor: theme.card }]}>
+              <View style={[styles.iconContainer, { backgroundColor: isDarkMode ? '#07598533' : '#E0F2FE' }]}>
                 <Ionicons name="receipt" size={24} color="#0EA5E9" />
               </View>
               <View>
-                <Text style={styles.statLabel}>Orders</Text>
-                <Text style={styles.statValue}>{displayOrdersCount}</Text>
+                <Text style={[styles.statLabel, { color: theme.subtext }]}>Orders</Text>
+                <Text style={[styles.statValue, { color: theme.text }]}>{displayOrdersCount}</Text>
               </View>
             </View>
 
-            <View style={styles.statCard}>
-              <View style={[styles.iconContainer, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="time" size={24} color="#D97706" />
+            <View style={[styles.statCard, { backgroundColor: theme.card }]}>
+              <View style={[styles.iconContainer, { backgroundColor: isDarkMode ? '#92400E33' : '#FEF3C7' }]}>
+                <Ionicons name="time" size={24} color={theme.warning} />
               </View>
               <View>
-                <Text style={styles.statLabel}>Pending</Text>
-                <Text style={styles.statValue}>{pendingOrders}</Text>
+                <Text style={[styles.statLabel, { color: theme.subtext }]}>Pending</Text>
+                <Text style={[styles.statValue, { color: theme.text }]}>{pendingOrders}</Text>
               </View>
             </View>
 
-            <View style={styles.statCard}>
-              <View style={[styles.iconContainer, { backgroundColor: '#DCFCE7' }]}>
-                <Ionicons name="restaurant" size={24} color="#16A34A" />
+            <View style={[styles.statCard, { backgroundColor: theme.card }]}>
+              <View style={[styles.iconContainer, { backgroundColor: isDarkMode ? '#065F4633' : '#DCFCE7' }]}>
+                <Ionicons name="restaurant" size={24} color={theme.success} />
               </View>
               <View>
-                <Text style={styles.statLabel}>Active Items</Text>
-                <Text style={styles.statValue}>{activeItems}</Text>
+                <Text style={[styles.statLabel, { color: theme.subtext }]}>Active Items</Text>
+                <Text style={[styles.statValue, { color: theme.text }]}>{activeItems}</Text>
               </View>
             </View>
           </View>
@@ -184,59 +184,59 @@ const DashboardScreen = ({ navigation }) => {
 
         {/* Quick Actions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Quick Actions</Text>
           <View style={styles.actionRow}>
             <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('FoodTab', { screen: 'AddFood' })}>
-              <View style={[styles.actionIcon, { backgroundColor: '#F3E8FF' }]}>
-                <Ionicons name="add" size={24} color="#9139BA" />
+              <View style={[styles.actionIcon, { backgroundColor: isDarkMode ? '#4C1D9533' : '#F3E8FF' }]}>
+                <Ionicons name="add" size={24} color={theme.primary} />
               </View>
-              <Text style={styles.actionLabel}>Add Item</Text>
+              <Text style={[styles.actionLabel, { color: theme.subtext }]}>Add Item</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('OrdersTab')}>
-              <View style={[styles.actionIcon, { backgroundColor: '#F3F4F6' }]}>
-                <Ionicons name="list" size={24} color="#374151" />
+              <View style={[styles.actionIcon, { backgroundColor: isDarkMode ? '#37415133' : '#F3F4F6' }]}>
+                <Ionicons name="list" size={24} color={theme.text} />
               </View>
-              <Text style={styles.actionLabel}>Orders</Text>
+              <Text style={[styles.actionLabel, { color: theme.subtext }]}>Orders</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('FoodTab')}>
-              <View style={[styles.actionIcon, { backgroundColor: '#F3F4F6' }]}>
-                <Ionicons name="fast-food" size={24} color="#374151" />
+              <View style={[styles.actionIcon, { backgroundColor: isDarkMode ? '#37415133' : '#F3F4F6' }]}>
+                <Ionicons name="fast-food" size={24} color={theme.text} />
               </View>
-              <Text style={styles.actionLabel}>Menu</Text>
+              <Text style={[styles.actionLabel, { color: theme.subtext }]}>Menu</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Profile')}>
-              <View style={[styles.actionIcon, { backgroundColor: '#F3F4F6' }]}>
-                <Ionicons name="settings" size={24} color="#374151" />
+              <View style={[styles.actionIcon, { backgroundColor: isDarkMode ? '#37415133' : '#F3F4F6' }]}>
+                <Ionicons name="settings" size={24} color={theme.text} />
               </View>
-              <Text style={styles.actionLabel}>Settings</Text>
+              <Text style={[styles.actionLabel, { color: theme.subtext }]}>Settings</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Weekly Chart */}
+        {/* Weekly Performance */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Weekly Performance</Text>
-          <View style={styles.chartContainer}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Weekly Performance</Text>
+          <View style={[styles.chartContainer, { backgroundColor: theme.card }]}>
             <LineChart
               data={chartData}
               width={width - 32} // Screen width - padding
               height={220}
-              yAxisLabel="$"
+              yAxisLabel="₹"
               chartConfig={{
-                backgroundColor: '#FFFFFF',
-                backgroundGradientFrom: '#FFFFFF',
-                backgroundGradientTo: '#FFFFFF',
+                backgroundColor: theme.card,
+                backgroundGradientFrom: theme.card,
+                backgroundGradientTo: theme.card,
                 decimalPlaces: 0,
-                color: (opacity = 1) => `rgba(145, 57, 186, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
+                color: (opacity = 1) => isDarkMode ? `rgba(145, 57, 186, ${opacity})` : `rgba(145, 57, 186, ${opacity})`,
+                labelColor: (opacity = 1) => theme.subtext,
                 style: { borderRadius: 16 },
                 propsForDots: {
                   r: "4",
                   strokeWidth: "2",
-                  stroke: "#9139BA"
+                  stroke: theme.primary
                 }
               }}
               bezier
@@ -248,7 +248,7 @@ const DashboardScreen = ({ navigation }) => {
         {/* Recent Orders */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Orders</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>Recent Orders</Text>
             {orders.length > 3 && (
               <TouchableOpacity onPress={() => navigation.navigate('OrdersTab')}>
                 <Text style={styles.linkText}>View All</Text>
@@ -270,9 +270,9 @@ const DashboardScreen = ({ navigation }) => {
               />
             ))
           ) : (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="receipt-outline" size={48} color="#9CA3AF" />
-              <Text style={styles.emptyText}>No orders yet</Text>
+            <View style={[styles.emptyContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Ionicons name="receipt-outline" size={48} color={theme.subtext} />
+              <Text style={[styles.emptyText, { color: theme.subtext }]}>No orders yet</Text>
             </View>
           )}
         </View>

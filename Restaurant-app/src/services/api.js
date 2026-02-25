@@ -320,4 +320,17 @@ export const verifyOtp = async (email, otp) => {
   return apiClient.post('/auth/verify-otp', { email, otp });
 };
 
+// Forgot Password Flow
+export const forgotPassword = async (email) => {
+  return apiClient.post('/auth/forgot-password', { email });
+};
+
+export const verifyResetOtp = async (email, otp) => {
+  return apiClient.post('/auth/verify-reset-otp', { email, otp });
+};
+
+export const resetPassword = async (email, password) => {
+  return apiClient.post('/auth/reset-password', { email, password });
+};
+
 export default apiClient;

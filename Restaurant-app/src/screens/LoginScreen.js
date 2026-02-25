@@ -210,10 +210,20 @@ const LoginScreen = ({ navigation }) => {
               </>
             )}
 
+            {/* Forgot Password Link */}
+            {loginMode === 'password' && (
+              <TouchableOpacity
+                style={{ alignItems: 'flex-end', marginBottom: 16 }}
+                onPress={() => navigation.navigate('ForgotPassword')}
+              >
+                <Text style={{ color: theme.primary, fontWeight: '600' }}>Forgot Password?</Text>
+              </TouchableOpacity>
+            )}
+
             {/* Error Message */}
             {error && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
+              <View style={[styles.errorContainer, { backgroundColor: isDarkMode ? '#7F1D1D33' : '#FEE', borderColor: isDarkMode ? '#7F1D1D' : '#FCC' }]}>
+                <Text style={[styles.errorText, { color: isDarkMode ? '#FCA5A5' : '#DC3545' }]}>{error}</Text>
               </View>
             )}
 
@@ -248,9 +258,9 @@ const LoginScreen = ({ navigation }) => {
 
           {/* OR Divider */}
           <View style={styles.divider}>
-            <View style={[styles.dividerLine, { backgroundColor: theme.subtext }]} />
+            <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
             <Text style={[styles.dividerText, { color: theme.subtext }]}>OR</Text>
-            <View style={[styles.dividerLine, { backgroundColor: theme.subtext }]} />
+            <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
           </View>
 
           {/* Create Account Button */}

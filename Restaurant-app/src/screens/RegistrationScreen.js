@@ -187,8 +187,8 @@ const RegistrationScreen = ({ navigation }) => {
 
             {/* Error Message */}
             {error && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
+              <View style={[styles.errorContainer, { backgroundColor: isDarkMode ? '#7F1D1D33' : '#FEE', borderColor: isDarkMode ? '#7F1D1D' : '#FCC' }]}>
+                <Text style={[styles.errorText, { color: isDarkMode ? '#FCA5A5' : '#DC3545' }]}>{error}</Text>
               </View>
             )}
 

@@ -249,4 +249,32 @@ router.put("/profile/image", protectDelivery, upload.single('profileImage'), asy
     }
 });
 
+// 8. Get Lifetime Profile Stats
+router.get("/profile-stats", protectDelivery, async (req, res) => {
+    try {
+        const partnerId = req.partner._id;
+
+        // 1. Total Trips (Completed Orders)
+        const totalTrips = await Order.countDocuments({
+            deliveryPartnerId: partnerId,
+            status: "completed"
+        });
+
+        // 2. Partner Data
+        const partner = await DeliveryPartner.findById(partnerId);
+
+        res.json({
+            success: true,
+            stats: {
+                trips: totalTrips,
+                rating: partner.averageRating || 5.0,
+                joinedAt: partner.createdAt
+            }
+        });
+    } catch (error) {
+        console.error("Profile stats error:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 export default router;
