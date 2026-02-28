@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Alert, ActivityIndicator, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Alert, ActivityIndicator, useColorScheme, Linking, Platform } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import axios from 'axios';
@@ -193,6 +193,30 @@ export default function ActiveOrderScreen({ navigation, route }) {
     }
   };
 
+  const handleNavigate = (lat, lng, addressString) => {
+    if (lat && lng) {
+      const navUrl = Platform.select({
+        ios: `http://maps.apple.com/?daddr=${lat},${lng}`,
+        android: `google.navigation:q=${lat},${lng}`
+      });
+      Linking.openURL(navUrl).catch(() => {
+        Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`);
+      });
+    } else if (addressString) {
+      const query = encodeURIComponent(addressString);
+      const url = Platform.select({
+        ios: `http://maps.apple.com/?q=${query}`,
+        // For address parsing on Android
+        android: `geo:0,0?q=${query}`
+      });
+      Linking.openURL(url).catch(() => {
+        Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
+      });
+    } else {
+      Alert.alert("Unable to Navigate", "No valid coordinates or address found.");
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* 1. THE MAP VIEW */}
@@ -250,16 +274,47 @@ export default function ActiveOrderScreen({ navigation, route }) {
           </View>
 
           <View style={styles.textColumn}>
-            <Text style={[styles.locationTitle, { color: colors.text }]}>{order?.restaurantId?.name || "Restaurant"}</Text>
-            <Text style={[styles.locationSub, { color: colors.subText }]}>
-              {order?.restaurantId?.addresses?.[0]?.street || order?.restaurantId?.addresses?.[0]?.city || "Location N/A"}
-            </Text>
+            {/* Restaurant Address Row */}
+            <View style={styles.addressRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.locationTitle, { color: colors.text }]}>{order?.restaurantId?.name || "Restaurant"}</Text>
+                <Text style={[styles.locationSub, { color: colors.subText }]}>
+                  {order?.restaurantId?.addresses?.[0]?.street || order?.restaurantId?.addresses?.[0]?.city || "Location N/A"}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.navMiniBtn, { backgroundColor: colors.badgeBg }]}
+                onPress={() => handleNavigate(
+                  order?.restaurantId?.addresses?.[0]?.latitude,
+                  order?.restaurantId?.addresses?.[0]?.longitude,
+                  order?.restaurantId?.addresses?.[0]?.street || order?.restaurantId?.addresses?.[0]?.city
+                )}
+              >
+                <MaterialCommunityIcons name="navigation-variant" size={16} color={colors.badgeText} />
+                <Text style={[styles.navMiniText, { color: colors.badgeText }]}>Nav</Text>
+              </TouchableOpacity>
+            </View>
 
             {orders.map((ord, idx) => (
               <View key={`info-${idx}`}>
                 <View style={{ height: 15 }} />
-                <Text style={[styles.locationTitle, { color: colors.text }]}>{ord?.customer?.name || `Customer ${idx + 1}`}</Text>
-                <Text style={[styles.locationSub, { color: colors.subText }]}>{ord?.deliveryAddress || "Delivery Address N/A"}</Text>
+                <View style={styles.addressRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.locationTitle, { color: colors.text }]}>{ord?.customer?.name || `Customer ${idx + 1}`}</Text>
+                    <Text style={[styles.locationSub, { color: colors.subText }]}>{ord?.deliveryAddress || "Delivery Address N/A"}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.navMiniBtn, { backgroundColor: colors.badgeBg }]}
+                    onPress={() => handleNavigate(
+                      ord?.deliveryLocation?.latitude,
+                      ord?.deliveryLocation?.longitude,
+                      ord?.deliveryAddress
+                    )}
+                  >
+                    <MaterialCommunityIcons name="navigation-variant" size={16} color={colors.badgeText} />
+                    <Text style={[styles.navMiniText, { color: colors.badgeText }]}>Nav</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ))}
           </View>
@@ -323,4 +378,7 @@ const styles = StyleSheet.create({
   utilityButton: { width: 55, height: 55, borderRadius: 15, backgroundColor: '#F3F5F7', justifyContent: 'center', alignItems: 'center' },
   mainButton: { flex: 1, height: 55, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
   mainButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold', letterSpacing: 1 },
+  addressRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  navMiniBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, gap: 4 },
+  navMiniText: { fontSize: 12, fontWeight: '700' },
 });

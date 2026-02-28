@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useCartStore, useRestaurantStore, useUserStore } from '../../../store';
 import { useTheme } from '../../../hooks/useTheme';
 import { reviewService } from '../../../services/api';
+import Skeleton from '../../../components/Skeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -298,105 +299,123 @@ export default function RestaurantDetailScreen({ route, navigation }) {
               {selectedCategory} ({filteredItems.length})
             </Text>
 
-            {filteredItems.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={[styles.menuItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                activeOpacity={0.7}
-              >
-                <View style={styles.menuItemInfo}>
-                  {/* Veg/Non-Veg Indicator */}
-                  {item.isVeg ? (
-                    <View style={{
-                      width: 15, height: 15, borderWidth: 1, borderColor: '#22C55E',
-                      alignItems: 'center', justifyContent: 'center', marginBottom: 6, borderRadius: 3
-                    }}>
-                      <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: '#22C55E' }} />
+            {isLoading ? (
+              <View style={{ marginTop: 10 }}>
+                {[1, 2, 3].map((key) => (
+                  <View key={key} style={{ marginBottom: 16, flexDirection: 'row' }}>
+                    <View style={{ flex: 1, paddingRight: 12 }}>
+                      <Skeleton width="60%" height={20} borderRadius={4} style={{ marginBottom: 8 }} />
+                      <Skeleton width="40%" height={20} borderRadius={4} style={{ marginBottom: 16 }} />
+                      <Skeleton width="80%" height={14} borderRadius={4} style={{ marginBottom: 6 }} />
+                      <Skeleton width="70%" height={14} borderRadius={4} />
                     </View>
-                  ) : (
-                    <View style={{
-                      width: 15, height: 15, borderWidth: 1, borderColor: '#EF4444',
-                      alignItems: 'center', justifyContent: 'center', marginBottom: 6, borderRadius: 3
-                    }}>
-                      <Ionicons name="caret-up" size={10} color="#EF4444" />
-                    </View>
-                  )}
+                    <Skeleton width={100} height={100} borderRadius={16} />
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <>
+                {filteredItems.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[styles.menuItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.menuItemInfo}>
+                      {/* Veg/Non-Veg Indicator */}
+                      {item.isVeg ? (
+                        <View style={{
+                          width: 15, height: 15, borderWidth: 1, borderColor: '#22C55E',
+                          alignItems: 'center', justifyContent: 'center', marginBottom: 6, borderRadius: 3
+                        }}>
+                          <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: '#22C55E' }} />
+                        </View>
+                      ) : (
+                        <View style={{
+                          width: 15, height: 15, borderWidth: 1, borderColor: '#EF4444',
+                          alignItems: 'center', justifyContent: 'center', marginBottom: 6, borderRadius: 3
+                        }}>
+                          <Ionicons name="caret-up" size={10} color="#EF4444" />
+                        </View>
+                      )}
 
-                  <Text style={[styles.menuItemName, { color: colors.text }]}>{item.name}</Text>
-                  <Text style={[styles.menuItemPrice, { color: colors.text }]}>₹{item.price}</Text>
-                  <Text style={[styles.menuItemDescription, { color: colors.textSub }]} numberOfLines={2}>
-                    {item.description}
-                  </Text>
-
-                  {item.averageRating > 0 && (
-                    <View style={styles.ratingPill}>
-                      <Ionicons name="star" size={10} color="#F59E0B" />
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#F59E0B', marginLeft: 2 }}>{item.averageRating}</Text>
-                      <Text style={{ fontSize: 11, color: colors.textSub, marginLeft: 2 }}>({item.totalReviews})</Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={[styles.imageContainer, { alignItems: 'center' }]}>
-                  <Image source={{ uri: item.image }} style={styles.menuItemImage} />
-
-                  {getCartItem(item.id) ? (
-                    <View style={[
-                      styles.quantityContainer,
-                      { backgroundColor: colors.surface, borderColor: colors.primary[500] }
-                    ]}>
-                      <TouchableOpacity
-                        style={styles.quantityButton}
-                        onPress={() => handleDecrement(item)}
-                      >
-                        <Ionicons name="remove" size={18} color={colors.primary[500]} />
-                      </TouchableOpacity>
-
-                      <Text style={[styles.quantityText, { color: colors.primary[500] }]}>
-                        {getCartItem(item.id).quantity}
+                      <Text style={[styles.menuItemName, { color: colors.text }]}>{item.name}</Text>
+                      <Text style={[styles.menuItemPrice, { color: colors.text }]}>₹{item.price}</Text>
+                      <Text style={[styles.menuItemDescription, { color: colors.textSub }]} numberOfLines={2}>
+                        {item.description}
                       </Text>
 
-                      <TouchableOpacity
-                        style={styles.quantityButton}
-                        onPress={() => handleIncrement(item)}
-                      >
-                        <Ionicons name="add" size={18} color={colors.primary[500]} />
-                      </TouchableOpacity>
+                      {item.averageRating > 0 && (
+                        <View style={styles.ratingPill}>
+                          <Ionicons name="star" size={10} color="#F59E0B" />
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: '#F59E0B', marginLeft: 2 }}>{item.averageRating}</Text>
+                          <Text style={{ fontSize: 11, color: colors.textSub, marginLeft: 2 }}>({item.totalReviews})</Text>
+                        </View>
+                      )}
                     </View>
-                  ) : (
-                    <TouchableOpacity
-                      style={[
-                        styles.plusButton,
-                        {
-                          backgroundColor: !restaurantData.isOpen || item.isAvailable === false
-                            ? colors.gray[400]
-                            : colors.primary[500],
-                          borderColor: colors.surface
-                        }
-                      ]}
-                      disabled={!restaurantData.isOpen || item.isAvailable === false}
-                      onPress={() => handleAddToCart(item)}
-                    >
-                      <Ionicons
-                        name={!restaurantData.isOpen || item.isAvailable === false ? "lock-closed" : "add"}
-                        size={20}
-                        color="#fff"
-                      />
-                    </TouchableOpacity>
-                  )}
-                  {item.isAvailable === false && (
-                    <View style={styles.soldOutBadge}>
-                      <Text style={styles.soldOutText}>SOLD OUT</Text>
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
 
-            {filteredItems.length === 0 && (
-              <View style={{ padding: 20, alignItems: 'center' }}>
-                <Text style={{ color: colors.textSub }}>No items in this category</Text>
-              </View>
+                    <View style={[styles.imageContainer, { alignItems: 'center' }]}>
+                      <Image source={{ uri: item.image }} style={styles.menuItemImage} />
+
+                      {getCartItem(item.id) ? (
+                        <View style={[
+                          styles.quantityContainer,
+                          { backgroundColor: colors.surface, borderColor: colors.primary[500] }
+                        ]}>
+                          <TouchableOpacity
+                            style={styles.quantityButton}
+                            onPress={() => handleDecrement(item)}
+                          >
+                            <Ionicons name="remove" size={18} color={colors.primary[500]} />
+                          </TouchableOpacity>
+
+                          <Text style={[styles.quantityText, { color: colors.primary[500] }]}>
+                            {getCartItem(item.id).quantity}
+                          </Text>
+
+                          <TouchableOpacity
+                            style={styles.quantityButton}
+                            onPress={() => handleIncrement(item)}
+                          >
+                            <Ionicons name="add" size={18} color={colors.primary[500]} />
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          style={[
+                            styles.plusButton,
+                            {
+                              backgroundColor: !restaurantData.isOpen || item.isAvailable === false
+                                ? colors.gray[400]
+                                : colors.primary[500],
+                              borderColor: colors.surface
+                            }
+                          ]}
+                          disabled={!restaurantData.isOpen || item.isAvailable === false}
+                          onPress={() => handleAddToCart(item)}
+                        >
+                          <Ionicons
+                            name={!restaurantData.isOpen || item.isAvailable === false ? "lock-closed" : "add"}
+                            size={20}
+                            color="#fff"
+                          />
+                        </TouchableOpacity>
+                      )}
+                      {item.isAvailable === false && (
+                        <View style={styles.soldOutBadge}>
+                          <Text style={styles.soldOutText}>SOLD OUT</Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+
+                {filteredItems.length === 0 && (
+                  <View style={{ padding: 20, alignItems: 'center' }}>
+                    <Text style={{ color: colors.textSub }}>No items in this category</Text>
+                  </View>
+                )}
+              </>
             )}
           </View>
 

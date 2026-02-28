@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Linking, Modal, Pressable, useColorScheme } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Linking, Modal, Pressable, useColorScheme, Image, ActivityIndicator, Alert, Platform } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -16,6 +17,7 @@ const lightColors = {
   infoBtn: '#f8f9fa',
   headerTitle: '#2d3436',
   statsBg: '#f8f9fa',
+  sheet: '#ffffff',
 };
 
 const darkColors = {
@@ -27,6 +29,7 @@ const darkColors = {
   infoBtn: '#2c2c2c',
   headerTitle: '#ffffff',
   statsBg: '#1a1a1a',
+  sheet: '#1e1e1e',
 };
 
 export default function ProfileScreen() {
@@ -37,9 +40,9 @@ export default function ProfileScreen() {
   const navigation = useNavigation();
   const { token, deliveryPartner, logout, updatePartner } = useDeliveryAuthStore();
   const [partner, setPartner] = React.useState(deliveryPartner);
-  const [showSupport, setShowSupport] = React.useState(false);
-  const [showInsurance, setShowInsurance] = React.useState(false);
   const [stats, setStats] = React.useState({ trips: 0, rating: 5.0, joinedAt: null });
+  const [uploading, setUploading] = React.useState(false);
+  const [showImageOptions, setShowImageOptions] = React.useState(false);
 
   const formatDuration = (dateString) => {
     if (!dateString) return '0d';
@@ -91,6 +94,85 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleEditProfileImage = () => {
+    setShowImageOptions(true);
+  };
+
+  const uploadImage = async (uri) => {
+    try {
+      setUploading(true);
+      const formData = new FormData();
+      formData.append('profileImage', {
+        uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
+        type: 'image/jpeg',
+        name: 'profile.jpg',
+      });
+
+      const response = await fetch(`${API_URL}/driver/profile/image`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const json = await response.json();
+      if (json.success) {
+        updatePartner(json.partner);
+        setPartner(json.partner);
+        Alert.alert('Success', 'Profile image updated successfully');
+      } else {
+        Alert.alert('Error', json.message || 'Failed to upload image');
+      }
+    } catch (err) {
+      console.log('Upload Error:', err);
+      Alert.alert('Error', 'An error occurred during upload');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const pickFromGallery = async () => {
+    setShowImageOptions(false);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Gallery access is required to pick an image.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled && result.assets[0].uri) {
+      uploadImage(result.assets[0].uri);
+    }
+  };
+
+  const takeFromCamera = async () => {
+    setShowImageOptions(false);
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Camera access is required to take a photo.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled && result.assets[0].uri) {
+      uploadImage(result.assets[0].uri);
+    }
+  };
+
   const handleLogout = () => {
     // Zustand logout() clears the store and AsyncStorage entry.
     // App.js reacts to isAuthenticated becoming false and shows the Auth screen.
@@ -101,8 +183,8 @@ export default function ProfileScreen() {
     });
   };
 
-  const handleSupport = () => setShowSupport(true);
-  const handleInsurance = () => setShowInsurance(true);
+  const handleSupport = () => navigation.navigate('Support');
+  const handleInsurance = () => navigation.navigate('Insurance');
 
   const MenuItem = ({ icon, title, subtitle, color = "#2d3436", onPress }) => (
     <TouchableOpacity
@@ -129,10 +211,24 @@ export default function ProfileScreen() {
         {/* PROFILE HEADER */}
         <View style={[styles.header, { backgroundColor: colors.background }]}>
           <View style={styles.avatarContainer}>
-            <View style={[styles.avatar, { backgroundColor: theme === 'dark' ? '#2c1a36' : '#f5f0fa' }]}>
-              <Text style={[styles.avatarInitial, { color: theme === 'dark' ? '#bb86fc' : '#9139BA' }]}>{partner?.name?.[0] || 'D'}</Text>
-            </View>
-            <TouchableOpacity style={styles.editBadge}>
+            <TouchableOpacity
+              style={[styles.avatar, { backgroundColor: theme === 'dark' ? '#2c1a36' : '#f5f0fa' }]}
+              onPress={handleEditProfileImage}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <ActivityIndicator color={theme === 'dark' ? '#bb86fc' : '#9139BA'} size="large" />
+              ) : partner?.profileImage ? (
+                <Image source={{ uri: partner.profileImage }} style={styles.avatarImg} />
+              ) : (
+                <Text style={[styles.avatarInitial, { color: theme === 'dark' ? '#bb86fc' : '#9139BA' }]}>{partner?.name?.[0] || 'D'}</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.editBadge}
+              onPress={handleEditProfileImage}
+              disabled={uploading}
+            >
               <MaterialCommunityIcons name="pencil" size={14} color="#fff" />
             </TouchableOpacity>
           </View>
@@ -181,94 +277,42 @@ export default function ProfileScreen() {
         <Text style={[styles.version, { color: colors.subText }]}>Treato v1.0.4</Text>
       </ScrollView>
 
-      {/* Support Modal */}
+      {/* Image Picker Options Modal */}
       <Modal
-        visible={showSupport}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowSupport(false)}
+        visible={showImageOptions}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowImageOptions(false)}
       >
-        <Pressable style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.8)' }]} onPress={() => setShowSupport(false)}>
-          <Pressable style={[styles.modalCard, { backgroundColor: colors.sheet }]} onPress={() => { }}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Contact Support</Text>
-            <Text style={[styles.modalSub, { color: colors.subText }]}>How would you like to reach us?</Text>
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setShowImageOptions(false)}
+        >
+          <View style={[styles.modalCard, { backgroundColor: colors.sheet }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Profile Photo</Text>
+            <Text style={[styles.modalSub, { color: colors.subText }]}>Update your delivery partner profile image</Text>
 
-            <TouchableOpacity style={[styles.supportOption, { borderBottomColor: colors.border }]} onPress={() => { setShowSupport(false); Linking.openURL('tel:+918450906057'); }}>
-              <MaterialCommunityIcons name="phone" size={22} color="#27ae60" />
-              <Text style={[styles.supportOptionText, { color: colors.text }]}>Call Support</Text>
+            <TouchableOpacity style={styles.supportOption} onPress={takeFromCamera}>
+              <View style={[styles.iconBox, { backgroundColor: '#e74c3c' + '15' }]}>
+                <MaterialCommunityIcons name="camera" size={24} color="#e74c3c" />
+              </View>
+              <Text style={[styles.supportOptionText, { color: colors.text }]}>Take from Camera</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.supportOption, { borderBottomColor: colors.border }]} onPress={() => { setShowSupport(false); Linking.openURL('mailto:support@treato.in?subject=Delivery%20Partner%20Support'); }}>
-              <MaterialCommunityIcons name="email-outline" size={22} color="#3498db" />
-              <Text style={[styles.supportOptionText, { color: colors.text }]}>Email Support</Text>
+            <TouchableOpacity style={styles.supportOption} onPress={pickFromGallery}>
+              <View style={[styles.iconBox, { backgroundColor: '#3498db' + '15' }]}>
+                <MaterialCommunityIcons name="image-multiple" size={24} color="#3498db" />
+              </View>
+              <Text style={[styles.supportOptionText, { color: colors.text }]}>Choose from Gallery</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.supportOption, { borderBottomColor: colors.border }]} onPress={() => { setShowSupport(false); Linking.openURL('https://wa.me/918450906057?text=Hi%2C%20I%20need%20support%20as%20a%20delivery%20partner.'); }}>
-              <MaterialCommunityIcons name="whatsapp" size={22} color="#25D366" />
-              <Text style={[styles.supportOptionText, { color: colors.text }]}>WhatsApp</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.cancelOption} onPress={() => setShowSupport(false)}>
+            <TouchableOpacity
+              style={styles.cancelOption}
+              onPress={() => setShowImageOptions(false)}
+            >
               <Text style={styles.cancelOptionText}>Cancel</Text>
             </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      {/* Insurance & Safety Modal */}
-      <Modal
-        visible={showInsurance}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowInsurance(false)}
-      >
-        <Pressable style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.8)' }]} onPress={() => setShowInsurance(false)}>
-          <Pressable style={[styles.modalCard, { backgroundColor: colors.sheet, maxHeight: '85%' }]} onPress={() => { }}>
-            <View style={styles.insuranceHeader}>
-              <MaterialCommunityIcons name="shield-check" size={32} color="#27ae60" />
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Insurance & Safety</Text>
-            </View>
-            <Text style={[styles.modalSub, { color: colors.subText }]}>Your protection while on the road</Text>
-
-            {/* Coverage Card */}
-            <View style={[styles.infoCard, { backgroundColor: colors.statsBg }]}>
-              <View style={styles.infoCardHeader}>
-                <MaterialCommunityIcons name="car-emergency" size={20} color="#27ae60" />
-                <Text style={[styles.infoCardTitle, { color: colors.text }]}>Accident Coverage</Text>
-              </View>
-              <Text style={[styles.infoCardBody, { color: colors.subText }]}>You are covered for accidental injuries while on active delivery. Coverage includes hospitalization up to ₹1,00,000 and personal accident cover of ₹5,00,000.</Text>
-            </View>
-
-            {/* SOS Card */}
-            <View style={[styles.infoCard, { backgroundColor: colors.statsBg }]}>
-              <View style={styles.infoCardHeader}>
-                <MaterialCommunityIcons name="phone-alert" size={20} color="#e74c3c" />
-                <Text style={[styles.infoCardTitle, { color: colors.text }]}>SOS Emergency</Text>
-              </View>
-              <Text style={[styles.infoCardBody, { color: colors.subText }]}>In case of an emergency, call our 24/7 SOS helpline immediately.</Text>
-              <TouchableOpacity style={styles.sosBtn} onPress={() => { setShowInsurance(false); Linking.openURL('tel:+918450906057'); }}>
-                <MaterialCommunityIcons name="phone" size={16} color="#fff" />
-                <Text style={styles.sosBtnText}>Call SOS Helpline</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Safety Tips Card */}
-            <View style={[styles.infoCard, { backgroundColor: colors.statsBg }]}>
-              <View style={styles.infoCardHeader}>
-                <MaterialCommunityIcons name="helmet" size={20} color="#3498db" />
-                <Text style={[styles.infoCardTitle, { color: colors.text }]}>Safety Guidelines</Text>
-              </View>
-              <Text style={[styles.infoCardBody, { color: colors.subText }]}>• Always wear a helmet{`\n`}• Follow traffic rules{`\n`}• Do not use phone while riding{`\n`}• Take breaks on long routes</Text>
-            </View>
-
-            <TouchableOpacity style={styles.policyLink} onPress={() => Linking.openURL('https://treato.in/policy')}>
-              <Text style={styles.policyLinkText}>View Full Insurance Policy →</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.cancelOption} onPress={() => setShowInsurance(false)}>
-              <Text style={styles.cancelOptionText}>Close</Text>
-            </TouchableOpacity>
-          </Pressable>
+          </View>
         </Pressable>
       </Modal>
     </SafeAreaView>
@@ -279,7 +323,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   header: { alignItems: 'center', paddingVertical: 30, backgroundColor: '#fff' },
   avatarContainer: { marginBottom: 15 },
-  avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#2d3436', justifyContent: 'center', alignItems: 'center' },
+  avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#2d3436', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  avatarImg: { width: 90, height: 90, resizeMode: 'cover' },
   avatarInitial: { fontSize: 36, color: '#fff', fontWeight: '900' },
   editBadge: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#9139BA', width: 28, height: 28, borderRadius: 14, borderWidth: 3, borderColor: '#fff', justifyContent: 'center', alignItems: 'center' },
   userName: { fontSize: 24, fontWeight: '900', color: '#2d3436' },

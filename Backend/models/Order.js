@@ -63,6 +63,12 @@ const orderSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    hiddenByDeliveryPartners: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "DeliveryPartner",
+      }
+    ],
     status: {
       type: String,
       enum: ["pending", "accepted", "preparing", "ready", "reached_restaurant", "order_picked", "out_for_delivery", "completed", "cancelled"],

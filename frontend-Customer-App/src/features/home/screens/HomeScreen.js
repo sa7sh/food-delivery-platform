@@ -26,6 +26,7 @@ import { ROUTES } from '../../../constants';
 import { useUserStore } from '../../../store';
 import { foodService, restaurantService } from '../../../services/api';
 import FoodCard from '../components/FoodCard';
+import Skeleton from '../../../components/Skeleton';
 
 // --- CONFIGURATION & THEME ---
 const { width } = Dimensions.get('window');
@@ -568,8 +569,20 @@ export default function HomeScreen() {
 
 
   const renderSkeleton = () => (
-    <View style={{ padding: 20 }}>
-      <ActivityIndicator size="large" color="#9139BA" />
+    <View style={{ paddingHorizontal: 20, marginTop: 10 }}>
+      {[1, 2, 3].map((key) => (
+        <View key={key} style={{ marginBottom: 20 }}>
+          <Skeleton width="100%" height={180} borderRadius={16} />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
+            <Skeleton width="60%" height={24} borderRadius={4} />
+            <Skeleton width="15%" height={24} borderRadius={4} />
+          </View>
+          <View style={{ flexDirection: 'row', marginTop: 8 }}>
+            <Skeleton width="20%" height={16} borderRadius={4} style={{ marginRight: 8 }} />
+            <Skeleton width="20%" height={16} borderRadius={4} />
+          </View>
+        </View>
+      ))}
     </View>
   );
 

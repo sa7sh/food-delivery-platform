@@ -15,6 +15,8 @@ import ProfileScreen from './screens/ProfileScreen';
 import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import ResetPasswordOtpScreen from './screens/ResetPasswordOtpScreen';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
+import SupportScreen from './screens/SupportScreen';
+import InsuranceScreen from './screens/InsuranceScreen';
 import { SocketProvider } from './context/SocketContext';
 import { useDeliveryAuthStore } from './store/authStore';
 
@@ -103,6 +105,8 @@ export default function App() {
 
             {/* 3. ACTIVE ORDER - Full screen task view */}
             <Stack.Screen name="ActiveOrder" component={ActiveOrderScreen} />
+            <Stack.Screen name="Support" component={SupportScreen} />
+            <Stack.Screen name="Insurance" component={InsuranceScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </SocketProvider>

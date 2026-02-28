@@ -19,6 +19,10 @@ import { initSocketService } from "./services/socketService.js";
 // Load env variables
 dotenv.config();
 
+// Redis setup
+import { connectRedis } from "./config/redis.js";
+connectRedis();
+
 // 1️⃣ Create Express App FIRST
 // ===============================
 import { createServer } from "http";

@@ -9,6 +9,7 @@ import { AppError } from "../utils/AppError.js";
 import { validate } from "../middleware/validate.js";
 import { placeOrderSchema, updateOrderStatusSchema } from "../validators/orderValidators.js";
 import * as orderController from "../controllers/orderController.js";
+import { cacheResponse, clearCache } from "../middleware/cacheMiddleware.js";
 
 const router = express.Router();
 console.log("--> Order Routes file loaded! <--");
@@ -23,6 +24,42 @@ console.log("--> Order Routes file loaded! <--");
 router.use((req, res, next) => {
   console.log(`[OrderRoutes] Hit: ${req.method} ${req.path}`);
   next();
+});
+
+// Hide Order from Available List (Delivery Partner) - MOVED TO TOP to avoid conflicts
+router.patch("/hide/:id", protectDelivery, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const partnerId = req.partner._id;
+
+    if (id.startsWith('batch_')) {
+      // Handle batch: extract real IDs
+      const ids = id.replace('batch_', '').split('_');
+      await Order.updateMany(
+        { _id: { $in: ids } },
+        { $addToSet: { hiddenByDeliveryPartners: partnerId } }
+      );
+      return res.json({ success: true, message: "Batch hidden for this partner" });
+    }
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    // Add partner to hidden list if not already there
+    if (!order.hiddenByDeliveryPartners.includes(partnerId)) {
+      order.hiddenByDeliveryPartners.push(partnerId);
+      await order.save();
+    }
+
+    // Invalidate delivery orders cache
+    await clearCache('/api/orders/delivery/available');
+
+    res.json({ success: true, message: "Order hidden for this partner" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 // Delete Order (Soft Delete for Restaurant) - Moved to TOP
@@ -242,6 +279,11 @@ router.patch("/:id/status", protect, async (req, res) => {
       }
     }
 
+    // Invalidate delivery orders cache if status affects available orders
+    if (status === 'ready' || status === 'accepted' || status === 'cancelled') {
+      await clearCache('/api/orders/delivery/available');
+    }
+
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -345,12 +387,19 @@ const groupOrdersIntoBatches = (orders) => {
 };
 
 // Get Available Orders for Delivery (Status: Ready)
-router.get("/delivery/available", protectDelivery, async (req, res) => {
+router.get("/delivery/available", protectDelivery, cacheResponse(60), async (req, res) => {
   try {
     console.log("[OrderRoutes] GET /delivery/available hit");
+
+    // Calculate cutoff time (2 hours ago)
+    const cutoffTime = new Date();
+    cutoffTime.setHours(cutoffTime.getHours() - 2);
+
     const readyOrders = await Order.find({
       status: "ready",
-      deliveryPartnerId: null
+      deliveryPartnerId: null,
+      createdAt: { $gte: cutoffTime },
+      hiddenByDeliveryPartners: { $ne: req.partner._id } // Exclude if current partner hid it
     })
       .populate("restaurantId", "name phone addresses")
       .populate("customerId", "name phone addresses")
@@ -358,7 +407,7 @@ router.get("/delivery/available", protectDelivery, async (req, res) => {
 
     const groupedOrders = groupOrdersIntoBatches(readyOrders);
 
-    console.log(`[OrderRoutes] Found ${readyOrders.length} raw orders, grouped into ${groupedOrders.length} tasks`);
+    console.log(`[OrderRoutes] Found ${readyOrders.length} raw orders (last 2h), grouped into ${groupedOrders.length} tasks`);
     res.json(groupedOrders);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -453,6 +502,9 @@ router.patch("/:id/delivery-accept", protectDelivery, async (req, res) => {
       io.to(`restaurant_${order.restaurantId}`).emit("orderDeliveryAccepted", order);
     }
 
+    // Invalidate delivery orders cache
+    await clearCache('/api/orders/delivery/available');
+
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -483,6 +535,9 @@ router.post("/delivery/accept-batch", protectDelivery, async (req, res) => {
       }
       return null;
     }));
+
+    // Invalidate delivery orders cache
+    await clearCache('/api/orders/delivery/available');
 
     res.json({ message: "Batch accepted", acceptedCount: updatedOrders.filter(Boolean).length });
   } catch (error) {

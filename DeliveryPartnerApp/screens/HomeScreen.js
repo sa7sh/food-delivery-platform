@@ -10,6 +10,7 @@ import { useSocket } from '../context/SocketContext';
 import { useDeliveryAuthStore } from '../store/authStore';
 
 import { API_URL } from '../constants/Config';
+import Skeleton from '../components/Skeleton';
 
 import { useFocusEffect } from '@react-navigation/native';
 const { width } = Dimensions.get('window');
@@ -98,7 +99,14 @@ const OrderCard = ({ restaurant, distance, pay, items, location, onAccept, onDel
             <MaterialCommunityIcons name="check-circle" size={16} color="#fff" />
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity style={[styles.expiredBtn, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]} onPress={onDelete} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={[styles.expiredBtn, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+            onPress={() => {
+              console.log("[OrderCard] Remove button clicked");
+              onDelete();
+            }}
+            activeOpacity={0.8}
+          >
             <MaterialCommunityIcons name="delete-outline" size={16} color="#fff" style={{ marginRight: 4 }} />
             <Text style={styles.expiredBtnText}>Remove</Text>
           </TouchableOpacity>
@@ -140,23 +148,37 @@ export default function HomeScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleDeleteExpired = (orderId) => {
-    hideOrder(orderId);
+  const handleDeleteExpired = async (orderId) => {
+    try {
+      if (!token) return;
+
+      const fullUrl = `${ORDER_URL}/hide/${orderId}`;
+
+      // Call backend to hide order permanently for this partner
+      const response = await axios.patch(fullUrl, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        // Update local state immediately for better UX
+        setAvailableOrders(prev => prev.filter(o => o._id !== orderId));
+        // Also update store
+        hideOrder(orderId);
+      }
+    } catch (error) {
+      console.log("Error hiding order:", error);
+    }
   };
 
   // Fetch Orders
   const fetchOrders = async () => {
     try {
-      console.log("Fetching orders with token:", token ? "Present" : "Missing"); // DEBUG
-
       if (!token) return;
+      setLoading(true);
 
       const response = await axios.get(`${ORDER_URL}/delivery/available`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-
-      console.log("Fetch Orders Response Status:", response.status); // DEBUG
-      console.log("Fetch Orders Data:", JSON.stringify(response.data, null, 2)); // DEBUG
 
       // Backend returns the array directly
       if (Array.isArray(response.data)) {
@@ -175,6 +197,7 @@ export default function HomeScreen({ navigation }) {
       }
     } finally {
       setRefreshing(false);
+      setLoading(false);
     }
   };
 
@@ -347,6 +370,21 @@ export default function HomeScreen({ navigation }) {
             onRefresh={onRefresh}
             refreshing={refreshing}
             contentContainerStyle={styles.listPadding}
+            ListEmptyComponent={() => (
+              loading ? (
+                <View style={{ paddingHorizontal: 20 }}>
+                  {[1, 2, 3].map((key) => (
+                    <View key={key} style={{ marginBottom: 16 }}>
+                      <Skeleton width="100%" height={160} borderRadius={16} />
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <View style={{ alignItems: 'center', marginTop: 40 }}>
+                  <Text style={{ color: colors.subText }}>No available tasks nearby.</Text>
+                </View>
+              )
+            )}
           />
         </>
       ) : (

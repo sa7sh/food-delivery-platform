@@ -7,6 +7,7 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import sendEmail from "../utils/sendEmail.js";
 dotenv.config();
 const router = express.Router();
 const uploadDir = './uploads';
@@ -128,4 +129,82 @@ router.post('/api/auth/delivery/login', async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 });
+// Send OTP for delivery partner
+router.post('/api/auth/delivery/send-otp', async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ success: false, message: "Email is required" });
+
+        const normalizedEmail = email.toLowerCase().trim();
+        const partner = await DeliveryPartner.findOne({ email: normalizedEmail });
+        if (!partner) return res.status(404).json({ success: false, message: "Account not found." });
+
+        // Generate 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+        partner.otp = otp;
+        partner.otpExpires = otpExpires;
+        partner.otpAttempts = 0;
+        await partner.save();
+
+        console.log(`[Backend] Delivery Partner OTP for ${email}: ${otp}`);
+
+        try {
+            await sendEmail({
+                email: partner.email,
+                subject: "Treato Go - Delivery Partner Login OTP",
+                message: `Your OTP is ${otp}. It expires in 5 minutes.`,
+                html: `<p>Your OTP is <b>${otp}</b>. It expires in 5 minutes.</p>`
+            });
+        } catch (emailError) {
+            console.error("Email send failed:", emailError);
+            return res.status(500).json({ success: false, message: "Failed to send email" });
+        }
+
+        res.json({ success: true, message: "OTP sent to email" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// Verify OTP & Login for delivery partner
+router.post('/api/auth/delivery/verify-otp', async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        if (!email || !otp) return res.status(400).json({ success: false, message: "Email and OTP are required" });
+
+        const normalizedEmail = email.toLowerCase().trim();
+        const partner = await DeliveryPartner.findOne({ email: normalizedEmail }).select("+otp +otpExpires +otpAttempts");
+
+        if (!partner) return res.status(404).json({ success: false, message: "Account not found." });
+
+        if (partner.otpAttempts >= 5) return res.status(429).json({ success: false, message: "Too many failed attempts." });
+
+        if (partner.otpExpires < Date.now()) return res.status(400).json({ success: false, message: "OTP has expired." });
+
+        if (partner.otp !== otp) {
+            partner.otpAttempts += 1;
+            await partner.save();
+            return res.status(400).json({ success: false, message: `Invalid OTP. ${5 - partner.otpAttempts} attempts remaining.` });
+        }
+
+        // Success - clear OTP
+        partner.otp = undefined;
+        partner.otpExpires = undefined;
+        partner.otpAttempts = 0;
+        await partner.save();
+
+        const token = jwt.sign(
+            { id: partner._id, role: 'delivery_partner' },
+            process.env.JWT_SECRET || "temp_secret",
+            { expiresIn: "1d" }
+        );
+
+        res.status(200).json({ success: true, token, partner });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 export default router;

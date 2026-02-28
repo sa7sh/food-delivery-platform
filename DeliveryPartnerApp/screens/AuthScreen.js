@@ -93,6 +93,9 @@ export default function AuthScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [otpMode, setOtpMode] = useState('password'); // 'password' or 'otp'
+  const [otp, setOtp] = useState('');
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -163,8 +166,62 @@ export default function AuthScreen({ navigation }) {
     }
   };
 
+  const handleSendOtp = async () => {
+    if (!formData.email) return Alert.alert("Error", "Please enter your email");
+    setLoading(true);
+    try {
+      const response = await fetch(`${AUTH_URL}/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email })
+      });
+      const result = await response.json();
+      if (result.success) {
+        setIsOtpSent(true);
+        Alert.alert("Success", "OTP sent to your email");
+      } else {
+        Alert.alert("Error", result.message);
+      }
+    } catch (e) {
+      Alert.alert("Error", "Server connection failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otp) return Alert.alert("Error", "Please enter the OTP");
+    setLoading(true);
+    try {
+      const response = await fetch(`${AUTH_URL}/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, otp })
+      });
+      const result = await response.json();
+      if (result.success) {
+        login(result.token, result.partner);
+        navigation.replace('Main');
+      } else {
+        Alert.alert("Verification Failed", result.message);
+      }
+    } catch (e) {
+      Alert.alert("Error", "Server connection failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogin = async () => {
     animatePress();
+    if (loginMethod === 'email' && otpMode === 'otp') {
+      if (isOtpSent) {
+        return handleVerifyOtp();
+      } else {
+        return handleSendOtp();
+      }
+    }
+
     let payload = {};
     if (loginMethod === 'phone') {
       if (!formData.phone) return Alert.alert("Error", "Please enter your phone number");
@@ -300,27 +357,74 @@ export default function AuthScreen({ navigation }) {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={formData.email}
-                onChangeText={(val) => updateField('email', val)}
+                onChangeText={(val) => {
+                  updateField('email', val);
+                  if (isOtpSent) setIsOtpSent(false); // Reset if email changes
+                }}
+                editable={!isOtpSent}
               />
             </View>
-            <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Password</Text>
-            <View style={styles.darkInput}>
-              <MaterialCommunityIcons name="lock-outline" size={20} color="#9139BA" />
-              <TextInput
-                style={styles.darkInputField}
-                placeholder="Enter password"
-                placeholderTextColor="#555"
-                secureTextEntry={!showPassword}
-                value={formData.password}
-                onChangeText={(val) => updateField('password', val)}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(p => !p)}>
-                <MaterialCommunityIcons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#555" />
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity style={{ alignSelf: 'flex-end', marginTop: 10 }} onPress={() => navigation.navigate('ForgotPassword')}>
-              <Text style={styles.forgotText}>Forgot Password?</Text>
-            </TouchableOpacity>
+
+            {otpMode === 'password' ? (
+              <>
+                <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Password</Text>
+                <View style={styles.darkInput}>
+                  <MaterialCommunityIcons name="lock-outline" size={20} color="#9139BA" />
+                  <TextInput
+                    style={styles.darkInputField}
+                    placeholder="Enter password"
+                    placeholderTextColor="#555"
+                    secureTextEntry={!showPassword}
+                    value={formData.password}
+                    onChangeText={(val) => updateField('password', val)}
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(p => !p)}>
+                    <MaterialCommunityIcons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#555" />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.emailOptionsRow}>
+                  <TouchableOpacity onPress={() => setOtpMode('otp')}>
+                    <Text style={styles.otpToggleText}>Login with OTP</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+                    <Text style={styles.forgotText}>Forgot Password?</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                {isOtpSent && (
+                  <>
+                    <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Enter OTP</Text>
+                    <View style={styles.darkInput}>
+                      <MaterialCommunityIcons name="shield-check-outline" size={20} color="#9139BA" />
+                      <TextInput
+                        style={styles.darkInputField}
+                        placeholder="6-digit OTP"
+                        placeholderTextColor="#555"
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        value={otp}
+                        onChangeText={setOtp}
+                      />
+                    </View>
+                  </>
+                )}
+                <View style={styles.emailOptionsRow}>
+                  <TouchableOpacity onPress={() => {
+                    setOtpMode('password');
+                    setIsOtpSent(false);
+                  }}>
+                    <Text style={styles.otpToggleText}>Login with Password</Text>
+                  </TouchableOpacity>
+                  {isOtpSent && (
+                    <TouchableOpacity onPress={handleSendOtp}>
+                      <Text style={styles.forgotText}>Resend OTP</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </>
+            )}
           </>
         )}
 
@@ -332,7 +436,8 @@ export default function AuthScreen({ navigation }) {
             ) : (
               <>
                 <Text style={styles.loginBtnText}>
-                  {loginMethod === 'phone' ? 'Continue' : 'Log In'}
+                  {loginMethod === 'phone' ? 'Continue' :
+                    (otpMode === 'otp' ? (isOtpSent ? 'Verify & Login' : 'Send OTP') : 'Log In')}
                 </Text>
                 <View style={styles.loginBtnArrow}>
                   <MaterialCommunityIcons name="arrow-right" size={18} color="#9139BA" />
@@ -624,6 +729,17 @@ const styles = StyleSheet.create({
   forgotText: {
     color: '#9139BA',
     fontWeight: '600',
+    fontSize: 13,
+  },
+  emailOptionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  otpToggleText: {
+    color: '#1A1A1A',
+    fontWeight: '700',
     fontSize: 13,
   },
 

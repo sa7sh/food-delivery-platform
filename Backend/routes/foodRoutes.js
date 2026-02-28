@@ -1,6 +1,7 @@
 import express from "express";
 import FoodItem from "../models/FoodItem.js";
 import { protect } from "../middleware/authMiddleware.js";
+import { cacheResponse, clearPatternCache } from "../middleware/cacheMiddleware.js";
 
 const router = express.Router();
 
@@ -11,7 +12,8 @@ const router = express.Router();
  */
 
 /* Customer → GET ALL FOODS */
-router.get("/", async (req, res) => {
+// Cache all foods for 10 minutes (600 seconds)
+router.get("/", cacheResponse(600), async (req, res) => {
   try {
     const foods = await FoodItem.find({})
       .populate('restaurantId', 'name profileImage cuisineType address')
@@ -23,7 +25,8 @@ router.get("/", async (req, res) => {
 });
 
 /* Home Screen → Latest Foods */
-router.get("/latest", async (req, res) => {
+// Cache latest foods for 10 minutes (600 seconds)
+router.get("/latest", cacheResponse(600), async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
     const foods = await FoodItem.find({})
@@ -60,7 +63,8 @@ router.get("/search", async (req, res) => {
 });
 
 /* Get food items by restaurant ID (Public) */
-router.get("/restaurant/:restaurantId", async (req, res) => {
+// Cache restaurant specific foods for 10 minutes
+router.get("/restaurant/:restaurantId", cacheResponse(600), async (req, res) => {
   try {
     const { restaurantId } = req.params;
     const foods = await FoodItem.find({
@@ -119,6 +123,9 @@ router.post("/", protect, upload.single('image'), async (req, res) => {
       isAvailable: isAvailable !== undefined ? isAvailable : true,
       isVeg: req.body.isVeg !== undefined ? req.body.isVeg : true,
     });
+
+    // Invalidate cache when a new food item is added
+    await clearPatternCache('cache:/api/foods*');
 
     res.status(201).json(food);
   } catch (error) {
@@ -190,6 +197,10 @@ router.put("/:id", protect, upload.single('image'), async (req, res) => {
       updateData,
       { new: true }
     );
+
+    // Invalidate cache when a food item is updated
+    await clearPatternCache('cache:/api/foods*');
+
     res.json(updatedItem);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -210,6 +221,9 @@ router.delete("/:id", protect, async (req, res) => {
     if (!deletedItem) {
       return res.status(404).json({ message: "Food item not found or unauthorized" });
     }
+
+    // Invalidate cache when a food item is deleted
+    await clearPatternCache('cache:/api/foods*');
 
     res.json({ message: "Food item deleted successfully" });
   } catch (error) {
@@ -236,6 +250,9 @@ router.patch("/:id/availability", protect, async (req, res) => {
 
     foodItem.isAvailable = isAvailable;
     await foodItem.save();
+
+    // Invalidate cache when a food item's availability changes
+    await clearPatternCache('cache:/api/foods*');
 
     res.json(foodItem);
   } catch (error) {
