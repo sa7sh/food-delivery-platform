@@ -70,7 +70,7 @@ export default function ProfileScreen() {
 
       try {
         // 1. Fetch latest profile details
-        const response = await fetch(`${API_URL}/delivery-rating/${deliveryPartner._id}`, {
+        const response = await fetch(`${API_URL}/delivery/ratings/${deliveryPartner._id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const json = await response.json();
@@ -81,7 +81,7 @@ export default function ProfileScreen() {
         }
 
         // 2. Fetch lifetime statistics
-        const statsResponse = await fetch(`${API_URL}/profile-stats`, {
+        const statsResponse = await fetch(`${API_URL}/delivery/partners/profile-stats`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const statsJson = await statsResponse.json();
@@ -108,7 +108,7 @@ export default function ProfileScreen() {
         name: 'profile.jpg',
       });
 
-      const response = await fetch(`${API_URL}/driver/profile/image`, {
+      const response = await fetch(`${API_URL}/delivery/partners/profile/image`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -186,6 +186,14 @@ export default function ProfileScreen() {
   const handleSupport = () => navigation.navigate('Support');
   const handleInsurance = () => navigation.navigate('Insurance');
 
+  const handleComingSoon = (section) => {
+    Alert.alert(
+      'Coming Soon',
+      `${section} will be available in the next update. We are working hard to bring this feature to you.`,
+      [{ text: 'OK' }]
+    );
+  };
+
   const MenuItem = ({ icon, title, subtitle, color = "#2d3436", onPress }) => (
     <TouchableOpacity
       style={[styles.menuItem, { borderBottomColor: colors.border }]}
@@ -256,14 +264,14 @@ export default function ProfileScreen() {
         {/* SETTINGS SECTION */}
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: colors.subText }]}>VEHICLE & DOCUMENTS</Text>
-          <MenuItem icon="bike" title="Vehicle Details" subtitle={partner?.vehicle || "Not added"} color="#9139BA" />
-          <MenuItem icon="file-document-outline" title="Documents" subtitle="Driving License, PAN, Aadhaar" color="#3498db" />
-          <MenuItem icon="bank-outline" title="Bank Details" subtitle={partner?.bankName ? `${partner.bankName} •••• ${partner.accountNumber?.slice(-4)}` : "Not added"} color="#2ecc71" />
+          <MenuItem icon="bike" title="Vehicle Details" subtitle={partner?.vehicle || "Not added"} color="#9139BA" onPress={() => handleComingSoon('Vehicle Details')} />
+          <MenuItem icon="file-document-outline" title="Documents" subtitle="Driving License, PAN, Aadhaar" color="#3498db" onPress={() => handleComingSoon('Documents')} />
+          <MenuItem icon="bank-outline" title="Bank Details" subtitle={partner?.bankName ? `${partner.bankName} •••• ${partner.accountNumber?.slice(-4)}` : "Not added"} color="#2ecc71" onPress={() => handleComingSoon('Bank Details')} />
         </View>
 
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: colors.subText }]}>PREFERENCES</Text>
-          <MenuItem icon="bell-outline" title="Notifications" color={colors.text} />
+          <MenuItem icon="bell-outline" title="Notifications" color={colors.text} onPress={() => handleComingSoon('Notifications')} />
           <MenuItem icon="shield-check-outline" title="Insurance & Safety" subtitle="Coverage & emergency info" color="#27ae60" onPress={handleInsurance} />
           <MenuItem icon="help-circle-outline" title="Support" subtitle="Call, Email or WhatsApp" color="#e67e22" onPress={handleSupport} />
         </View>

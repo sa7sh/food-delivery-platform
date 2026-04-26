@@ -33,6 +33,7 @@ export default function OrderDetailScreen() {
   const [isSubmittingReview, setIsSubmittingReview] = React.useState(false);
   const { colors, isDark } = useTheme();
   const socket = useSocket();
+  const [cancelTimer, setCancelTimer] = React.useState(null);
 
   useEffect(() => {
     fetchOrderDetail(orderId);
@@ -47,6 +48,29 @@ export default function OrderDetailScreen() {
       });
     }
 
+    // Cancellation Timer Logic
+    let timerInterval = null;
+    if (currentOrder && (currentOrder.status === 'pending' || currentOrder.status === 'placed')) {
+      const calculateRemaining = () => {
+        const createdAt = new Date(currentOrder.createdAt || currentOrder.date);
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - createdAt) / 1000);
+        const remaining = 30 - diffInSeconds;
+
+        if (remaining <= 0) {
+          setCancelTimer(0);
+          if (timerInterval) clearInterval(timerInterval);
+        } else {
+          setCancelTimer(remaining);
+        }
+      };
+
+      calculateRemaining();
+      timerInterval = setInterval(calculateRemaining, 1000);
+    } else {
+      setCancelTimer(0);
+    }
+
     // Keep polling as fallback, but less frequent (30s)
     const interval = setInterval(() => {
       if (currentOrder && currentOrder.status && ![ORDER_STATUS.DELIVERED, ORDER_STATUS.CANCELLED].includes(currentOrder.status)) {
@@ -56,11 +80,12 @@ export default function OrderDetailScreen() {
 
     return () => {
       clearInterval(interval);
+      if (timerInterval) clearInterval(timerInterval);
       if (socket) {
         socket.off('orderStatusUpdated');
       }
     };
-  }, [orderId, socket, currentOrder?.status]);
+  }, [orderId, socket, currentOrder?.status, currentOrder?.createdAt]);
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -173,7 +198,8 @@ export default function OrderDetailScreen() {
 
   // Safe Status Calculation
   const orderStatus = currentOrder.status ? currentOrder.status.toUpperCase() : 'UNKNOWN';
-  const canCancel = [ORDER_STATUS.PLACED, ORDER_STATUS.CONFIRMED].includes(orderStatus);
+  const isCancellableStatus = [ORDER_STATUS.PLACED, 'PENDING'].includes(orderStatus);
+  const canCancel = isCancellableStatus && cancelTimer > 0;
   const canReview = [ORDER_STATUS.DELIVERED, 'COMPLETED'].includes(orderStatus) && (!currentOrder.restaurantReviewed || !currentOrder.deliveryReviewed);
 
   const getStatusColor = (status) => {
@@ -304,7 +330,7 @@ export default function OrderDetailScreen() {
       <View style={[styles.footer, { backgroundColor: colors.surface, shadowColor: isDark ? '#000' : '#000' }]}>
         {canCancel && (
           <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelOrder}>
-            <Text style={styles.cancelBtnText}>Cancel</Text>
+            <Text style={styles.cancelBtnText}>Cancel ({cancelTimer}s)</Text>
           </TouchableOpacity>
         )}
 

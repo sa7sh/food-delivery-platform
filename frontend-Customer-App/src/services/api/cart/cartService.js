@@ -1,35 +1,29 @@
-import httpClient from '../httpClient';
-import { API_ENDPOINTS } from '../../../constants';
+// Cart is handled entirely client-side via Zustand store.
+// No HTTP API calls — cart data lives in local state only.
 
 export const cartService = {
-  // Get cart
+  // Get cart — returns empty (handled by Zustand store)
   async getCart() {
-    // TODO: Replace with actual API call
-    return httpClient.get(API_ENDPOINTS.CART);
+    return { items: [], total: 0 };
   },
 
-  // Add to cart
+  // Add to cart — no-op (handled by Zustand store)
   async addToCart(item) {
-    // item: { foodItemId, quantity, customizations, restaurantId }
-    // TODO: Replace with actual API call
-    return httpClient.post(API_ENDPOINTS.CART, item);
+    return { success: true };
   },
 
-  // Update cart item
+  // Update cart item — no-op (handled by Zustand store)
   async updateCartItem(itemId, quantity) {
-    // TODO: Replace with actual API call
-    return httpClient.patch(`${API_ENDPOINTS.CART}/${itemId}`, { quantity });
+    return { success: true };
   },
 
-  // Remove from cart
+  // Remove from cart — no-op (handled by Zustand store)
   async removeFromCart(itemId) {
-    // TODO: Replace with actual API call
-    return httpClient.delete(`${API_ENDPOINTS.CART}/${itemId}`);
+    return { success: true };
   },
 
-  // Clear cart
+  // Clear cart — no-op (handled by Zustand store)
   async clearCart() {
-    // TODO: Replace with actual API call
-    return httpClient.delete(API_ENDPOINTS.CART);
+    return { success: true };
   },
 };

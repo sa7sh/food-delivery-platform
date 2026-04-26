@@ -63,11 +63,11 @@ export const userService = {
 
   // Get Favorites
   async getFavorites() {
-    return httpClient.get('/user/favorites');
+    return httpClient.get('/auth/favorites');
   },
 
   // Toggle Favorite
   async toggleFavorite(restaurantId) {
-    return httpClient.post(`/user/favorites/${restaurantId}`);
+    return httpClient.post(`/auth/favorites/${restaurantId}`);
   },
 };

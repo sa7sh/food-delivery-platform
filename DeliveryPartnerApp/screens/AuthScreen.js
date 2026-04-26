@@ -9,79 +9,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useDeliveryAuthStore } from '../store/authStore';
 import { API_URL } from '../constants/Config';
+import { COUNTRIES } from '../constants/countries';
+import { ProgressBar } from '../components/ProgressBar';
+import { FormInput } from '../components/FormInput';
+import { UploadCard } from '../components/UploadCard';
 
 const { width, height } = Dimensions.get('window');
 const AUTH_URL = `${API_URL}/auth/delivery`;
-
-// ─── Progress Bar for Registration ───────────────────────────────────────────
-const ProgressBar = ({ step }) => (
-  <View style={styles.progressContainer}>
-    {[1, 2, 3].map((item, index) => (
-      <React.Fragment key={item}>
-        <View style={[styles.stepNode, step >= item ? styles.stepNodeActive : styles.stepNodeInactive]}>
-          <Text style={[styles.stepNodeText, step >= item ? { color: '#fff' } : { color: '#b2bec3' }]}>{item}</Text>
-        </View>
-        {index < 2 && <View style={[styles.stepLine, step > item ? styles.stepLineActive : styles.stepLineInactive]} />}
-      </React.Fragment>
-    ))}
-  </View>
-);
-
-// ─── Form Input for Registration ─────────────────────────────────────────────
-const FormInput = ({ label, icon, placeholder, value, field, updateField, keyboardType = 'default' }) => (
-  <View style={styles.inputWrapper}>
-    <Text style={styles.inputLabel}>{label}</Text>
-    <View style={styles.inputBox}>
-      <MaterialCommunityIcons name={icon} size={20} color="#9139BA" />
-      <TextInput
-        style={styles.inputField}
-        placeholder={placeholder}
-        placeholderTextColor="#b2bec3"
-        value={value}
-        onChangeText={(val) => updateField(field, val)}
-        keyboardType={keyboardType}
-        autoCorrect={false}
-      />
-    </View>
-  </View>
-);
-
-// ─── Upload Card ──────────────────────────────────────────────────────────────
-const UploadCard = ({ label, field, icon, subtext, imageUri, onPick }) => (
-  <TouchableOpacity style={[styles.uploadCard, imageUri && styles.uploadCardActive]} onPress={() => onPick(field)}>
-    <View style={[styles.uploadIconCircle, imageUri && { backgroundColor: '#9139BA' }]}>
-      <MaterialCommunityIcons name={icon} size={24} color={imageUri ? "#fff" : "#9139BA"} />
-    </View>
-    <View style={{ flex: 1, marginLeft: 15 }}>
-      <Text style={styles.uploadTitle}>{label}</Text>
-      <Text style={styles.uploadSubtext}>{imageUri ? "Image Selected ✓" : subtext}</Text>
-    </View>
-    <MaterialCommunityIcons
-      name={imageUri ? "check-circle" : "plus-circle"}
-      size={24}
-      color={imageUri ? "#27ae60" : "#dfe6e9"}
-    />
-  </TouchableOpacity>
-);
-
-// ─── COUNTRIES ────────────────────────────────────────────────────────────────
-const COUNTRIES = [
-  { code: '+91', flag: '🇮🇳', name: 'India' },
-  { code: '+1', flag: '🇺🇸', name: 'USA' },
-  { code: '+44', flag: '🇬🇧', name: 'UK' },
-  { code: '+61', flag: '🇦🇺', name: 'Australia' },
-  { code: '+971', flag: '🇦🇪', name: 'UAE' },
-  { code: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
-  { code: '+65', flag: '🇸🇬', name: 'Singapore' },
-  { code: '+60', flag: '🇲🇾', name: 'Malaysia' },
-  { code: '+92', flag: '🇵🇰', name: 'Pakistan' },
-  { code: '+880', flag: '🇧🇩', name: 'Bangladesh' },
-  { code: '+94', flag: '🇱🇰', name: 'Sri Lanka' },
-  { code: '+977', flag: '🇳🇵', name: 'Nepal' },
-  { code: '+49', flag: '🇩🇪', name: 'Germany' },
-  { code: '+33', flag: '🇫🇷', name: 'France' },
-  { code: '+81', flag: '🇯🇵', name: 'Japan' },
-];
 
 // ─── MAIN AUTH SCREEN ─────────────────────────────────────────────────────────
 export default function AuthScreen({ navigation }) {
@@ -480,7 +414,7 @@ export default function AuthScreen({ navigation }) {
                 <View style={styles.headerTop}>
                   <Image source={require('../assets/logo.png')} style={[styles.logoImage, { width: 160, height: 60 }]} resizeMode="contain" />
                 </View>
-                {step < 4 && <ProgressBar step={step} />}
+                {step < 4 && <ProgressBar step={step} styles={styles} />}
               </View>
 
               <View>
@@ -488,11 +422,11 @@ export default function AuthScreen({ navigation }) {
                   <View style={styles.card}>
                     <Text style={styles.stepTitle}>Let's get started</Text>
                     <Text style={styles.stepSub}>Basic info for your account</Text>
-                    <FormInput label="Full Name" icon="account-tie-outline" placeholder="Enter full name" value={formData.name} field="name" updateField={updateField} />
-                    <FormInput label="Phone" icon="phone-outline" placeholder="Mobile number" keyboardType="phone-pad" value={formData.phone} field="phone" updateField={updateField} />
-                    <FormInput label="Email" icon="email-outline" placeholder="Email Address" keyboardType="email-address" value={formData.email} field="email" updateField={updateField} />
-                    <FormInput label="Password" icon="lock-outline" placeholder="Create Password" value={formData.password} field="password" updateField={updateField} />
-                    <FormInput label="Vehicle" icon="moped-outline" placeholder="e.g. Activa 6G" value={formData.vehicle} field="vehicle" updateField={updateField} />
+                    <FormInput label="Full Name" icon="account-tie-outline" placeholder="Enter full name" value={formData.name} field="name" updateField={updateField} styles={styles} />
+                    <FormInput label="Phone" icon="phone-outline" placeholder="Mobile number" keyboardType="phone-pad" value={formData.phone} field="phone" updateField={updateField} styles={styles} />
+                    <FormInput label="Email" icon="email-outline" placeholder="Email Address" keyboardType="email-address" value={formData.email} field="email" updateField={updateField} styles={styles} />
+                    <FormInput label="Password" icon="lock-outline" placeholder="Create Password" value={formData.password} field="password" updateField={updateField} styles={styles} />
+                    <FormInput label="Vehicle" icon="moped-outline" placeholder="e.g. Activa 6G" value={formData.vehicle} field="vehicle" updateField={updateField} styles={styles} />
                     <TouchableOpacity style={styles.primaryBtn} onPress={() => setStep(2)}>
                       <Text style={styles.primaryBtnText}>Continue</Text>
                       <MaterialCommunityIcons name="arrow-right" size={20} color="#fff" style={{ marginLeft: 8 }} />
@@ -504,10 +438,10 @@ export default function AuthScreen({ navigation }) {
                   <View style={styles.card}>
                     <Text style={styles.stepTitle}>Verification</Text>
                     <Text style={styles.stepSub}>Step 2: Legal Documents</Text>
-                    <FormInput label="Aadhaar Number" icon="numeric" placeholder="12-digit number" keyboardType="numeric" value={formData.aadhaar} field="aadhaar" updateField={updateField} />
-                    <UploadCard label="Aadhaar Photo" field="aadhaarImage" imageUri={formData.aadhaarImage} onPick={pickImage} subtext="Upload front view" icon="card-account-details-outline" />
-                    <UploadCard label="PAN Photo" field="panImage" imageUri={formData.panImage} onPick={pickImage} subtext="Clear front image" icon="file-image-outline" />
-                    <UploadCard label="Vehicle RC" field="rcImage" imageUri={formData.rcImage} onPick={pickImage} subtext="Registration Certificate" icon="book-open-outline" />
+                    <FormInput label="Aadhaar Number" icon="numeric" placeholder="12-digit number" keyboardType="numeric" value={formData.aadhaar} field="aadhaar" updateField={updateField} styles={styles} />
+                    <UploadCard label="Aadhaar Photo" field="aadhaarImage" imageUri={formData.aadhaarImage} onPick={pickImage} subtext="Upload front view" icon="card-account-details-outline" styles={styles} />
+                    <UploadCard label="PAN Photo" field="panImage" imageUri={formData.panImage} onPick={pickImage} subtext="Clear front image" icon="file-image-outline" styles={styles} />
+                    <UploadCard label="Vehicle RC" field="rcImage" imageUri={formData.rcImage} onPick={pickImage} subtext="Registration Certificate" icon="book-open-outline" styles={styles} />
                     <View style={styles.btnRow}>
                       <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep(1)}>
                         <Text style={styles.secondaryBtnText}>Back</Text>
@@ -523,10 +457,10 @@ export default function AuthScreen({ navigation }) {
                   <View style={styles.card}>
                     <Text style={styles.stepTitle}>Payout Details</Text>
                     <Text style={styles.stepSub}>Final step for registration</Text>
-                    <FormInput label="PAN Card Number" icon="card-bulleted-outline" placeholder="ABCDE1234F" value={formData.pan} field="pan" updateField={updateField} />
-                    <FormInput label="Bank Name" icon="bank-outline" placeholder="HDFC, SBI, etc." value={formData.bankName} field="bankName" updateField={updateField} />
-                    <FormInput label="Account Number" icon="numeric" placeholder="Enter number" keyboardType="numeric" value={formData.accountNum} field="accountNum" updateField={updateField} />
-                    <FormInput label="IFSC Code" icon="alphabetical" placeholder="IFSC Code" value={formData.ifsc} field="ifsc" updateField={updateField} />
+                    <FormInput label="PAN Card Number" icon="card-bulleted-outline" placeholder="ABCDE1234F" value={formData.pan} field="pan" updateField={updateField} styles={styles} />
+                    <FormInput label="Bank Name" icon="bank-outline" placeholder="HDFC, SBI, etc." value={formData.bankName} field="bankName" updateField={updateField} styles={styles} />
+                    <FormInput label="Account Number" icon="numeric" placeholder="Enter number" keyboardType="numeric" value={formData.accountNum} field="accountNum" updateField={updateField} styles={styles} />
+                    <FormInput label="IFSC Code" icon="alphabetical" placeholder="IFSC Code" value={formData.ifsc} field="ifsc" updateField={updateField} styles={styles} />
                     <View style={styles.btnRow}>
                       <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep(2)}>
                         <Text style={styles.secondaryBtnText}>Back</Text>

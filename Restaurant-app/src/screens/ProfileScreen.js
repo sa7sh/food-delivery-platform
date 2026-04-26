@@ -14,10 +14,13 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext.js';
 import { useTheme } from '../context/ThemeContext.js';
-import { updateRestaurantProfile, uploadFoodImage } from '../services/api.js';
+import { updateRestaurantProfile } from '../services/api.js';
 import CustomButton from '../components/CustomButton.js';
 import CustomToggle from '../components/CustomToggle.js';
 import { validateProfile } from '../utils/validators.js';
+import { useImagePicker } from '../hooks/useImagePicker.js';
+import { ImagesSection } from '../components/ImagesSection.js';
+import { BasicInfoSection } from '../components/BasicInfoSection.js';
 
 const ProfileScreen = ({ navigation }) => {
   const { restaurant, updateRestaurantData, logout, deleteAccount } = useAuth();
@@ -38,99 +41,23 @@ const ProfileScreen = ({ navigation }) => {
   const [showImagePicker, setShowImagePicker] = useState(false);
   const [imagePickerType, setImagePickerType] = useState(null); // 'profile' or 'restaurant'
 
-  const requestPermissions = async (type) => {
-    if (type === 'camera') {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please allow camera access to take photos');
-        return false;
-      }
-    } else {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please allow access to your photo library');
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const pickImageFromGallery = async () => {
-    try {
-      const hasPermission = await requestPermissions('gallery');
-      setShowImagePicker(false);
-
-      if (!hasPermission) return;
-
-      InteractionManager.runAfterInteractions(async () => {
-        try {
-          const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [1, 1], // Square aspect ratio for profile
-            quality: 0.8,
-          });
-
-          if (!result.canceled && result.assets && result.assets[0]) {
-            // Simulate upload or just use local URI
-            const uploadResult = await uploadFoodImage(result.assets[0].uri);
-            // Update the correct field based on imagePickerType
-            const fieldName = imagePickerType === 'profile' ? 'profileImage' : 'restaurantImage';
-            console.log(`[ProfileScreen] Image selected. Type: ${imagePickerType}, Field: ${fieldName}, URI: ${uploadResult.data.imageUrl?.substring(0, 50)}...`);
-
-            handleChange(fieldName, uploadResult.data.imageUrl);
-          }
-        } catch (pickerError) {
-          console.error('Gallery picker launch error:', pickerError);
-        }
-      });
-    } catch (error) {
-      setShowImagePicker(false);
-      console.error('Gallery picker error:', error);
-      Alert.alert('Error', `Failed to open gallery: ${error.message}`);
-    }
-  };
-
-  const takePhoto = async () => {
-    try {
-      const hasPermission = await requestPermissions('camera');
-      setShowImagePicker(false);
-
-      if (!hasPermission) return;
-
-      InteractionManager.runAfterInteractions(async () => {
-        try {
-          const result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [1, 1], // Square aspect ratio for profile
-            quality: 0.8,
-          });
-
-          if (!result.canceled && result.assets && result.assets[0]) {
-            // Simulate upload
-            const uploadResult = await uploadFoodImage(result.assets[0].uri);
-            // Update the correct field based on imagePickerType
-            const fieldName = imagePickerType === 'profile' ? 'profileImage' : 'restaurantImage';
-            handleChange(fieldName, uploadResult.data.imageUrl);
-          }
-        } catch (pickerError) {
-          console.error('Camera launch error:', pickerError);
-        }
-      });
-    } catch (error) {
-      setShowImagePicker(false);
-      console.error('Camera error:', error);
-      Alert.alert('Error', `Failed to open camera: ${error.message}`);
-    }
-  };
-
   const handleChange = (field, value) => {
-    setFormData({ ...formData, [field]: value });
-    // Clear error for this field
+    setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors({ ...errors, [field]: null });
+      setErrors(prev => ({ ...prev, [field]: null }));
     }
+  };
+
+  const { pickImageFromGallery, takePhoto } = useImagePicker(handleChange);
+
+  const handleGalleryPick = () => {
+    setShowImagePicker(false);
+    pickImageFromGallery(imagePickerType);
+  };
+
+  const handleCameraPick = () => {
+    setShowImagePicker(false);
+    takePhoto(imagePickerType);
   };
 
   const handleSave = async () => {
@@ -268,41 +195,14 @@ const ProfileScreen = ({ navigation }) => {
           {/* Form */}
           <View style={styles.form}>
             {/* Restaurant Image Section */}
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Restaurant Image</Text>
-              <Text style={[styles.hint, { color: theme.subtext, marginBottom: 12 }]}>
-                Business storefront/logo (visible to customers)
-              </Text>
-              <View>
-                <TouchableOpacity
-                  onPress={() => { setImagePickerType('restaurant'); setShowImagePicker(true); }}
-                  activeOpacity={0.7}
-                  style={[styles.restaurantImageContainer, { borderColor: theme.border }]}
-                >
-                  {formData.restaurantImage ? (
-                    <Image source={{ uri: formData.restaurantImage }} style={styles.restaurantImagePreview} />
-                  ) : (
-                    <View style={[styles.restaurantImagePlaceholder, { backgroundColor: theme.inputBg }]}>
-                      <Ionicons name="storefront-outline" size={48} color={theme.subtext} />
-                      <Text style={[styles.placeholderText, { color: theme.subtext }]}>
-                        Add Restaurant Photo
-                      </Text>
-                    </View>
-                  )}
-                  <View style={styles.restaurantImageOverlay}>
-                    <Ionicons name="camera" size={24} color="#FFFFFF" />
-                  </View>
-                </TouchableOpacity>
-                {formData.restaurantImage ? (
-                  <TouchableOpacity
-                    style={styles.removeButtonLarge}
-                    onPress={() => handleRemoveImage('restaurantImage')}
-                  >
-                    <Ionicons name="trash" size={20} color="#FFF" />
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            </View>
+            <ImagesSection
+              formData={formData}
+              handleRemoveImage={handleRemoveImage}
+              setShowImagePicker={setShowImagePicker}
+              setImagePickerType={setImagePickerType}
+              theme={theme}
+              styles={styles}
+            />
 
             {/* Appearance Section */}
             <View style={styles.section}>
@@ -344,97 +244,14 @@ const ProfileScreen = ({ navigation }) => {
             </View>
 
             {/* Restaurant Details Section */}
-            <Text style={[styles.sectionTitle, { color: theme.text, marginTop: 16 }]}>Restaurant Details</Text>
+            <BasicInfoSection
+              formData={formData}
+              errors={errors}
+              handleChange={handleChange}
+              theme={theme}
+              styles={styles}
+            />
 
-            {/* Restaurant Name */}
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.text }]}>Restaurant Name</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border },
-                  errors.name && { borderColor: theme.error }
-                ]}
-                value={formData.name}
-                onChangeText={(value) => handleChange('name', value)}
-                placeholder="Enter restaurant name"
-                placeholderTextColor={theme.subtext}
-              />
-              {errors.name && <Text style={[styles.errorText, { color: theme.error }]}>{errors.name}</Text>}
-            </View>
-
-            {/* Phone */}
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.text }]}>Phone Number</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border },
-                  errors.phone && { borderColor: theme.error }
-                ]}
-                value={formData.phone}
-                onChangeText={(value) => handleChange('phone', value)}
-                placeholder="Enter phone number"
-                placeholderTextColor={theme.subtext}
-                keyboardType="phone-pad"
-              />
-              {errors.phone && <Text style={[styles.errorText, { color: theme.error }]}>{errors.phone}</Text>}
-            </View>
-
-            {/* Address */}
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.text }]}>Address</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  styles.textArea,
-                  { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border },
-                  errors.address && { borderColor: theme.error }
-                ]}
-                value={formData.address}
-                onChangeText={(value) => handleChange('address', value)}
-                placeholder="Enter complete address"
-                placeholderTextColor={theme.subtext}
-                multiline
-                numberOfLines={3}
-              />
-              {errors.address && <Text style={[styles.errorText, { color: theme.error }]}>{errors.address}</Text>}
-            </View>
-
-            {/* Cuisine Type */}
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.text }]}>Cuisine Type</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border },
-                  errors.cuisineType && { borderColor: theme.error }
-                ]}
-                value={formData.cuisineType}
-                onChangeText={(value) => handleChange('cuisineType', value)}
-                placeholder="e.g., Indian, Chinese, Continental"
-                placeholderTextColor={theme.subtext}
-              />
-              {errors.cuisineType && (
-                <Text style={[styles.errorText, { color: theme.error }]}>{errors.cuisineType}</Text>
-              )}
-            </View>
-
-            {/* Restaurant Status */}
-            <View style={styles.inputGroup}>
-              <View style={[styles.switchRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                <View>
-                  <Text style={[styles.label, { color: theme.text, marginBottom: 0 }]}>Restaurant Status</Text>
-                  <Text style={[styles.hint, { color: theme.subtext }]}>
-                    {formData.isOpen ? 'Currently accepting orders' : 'Not accepting orders'}
-                  </Text>
-                </View>
-                <CustomToggle
-                  value={formData.isOpen}
-                  onValueChange={(value) => handleChange('isOpen', value)}
-                />
-              </View>
-            </View>
 
             {/* Save Button */}
             <CustomButton
@@ -480,7 +297,7 @@ const ProfileScreen = ({ navigation }) => {
 
               <TouchableOpacity
                 style={[styles.modalOption, { backgroundColor: theme.background }]}
-                onPress={pickImageFromGallery}
+                onPress={handleGalleryPick}
               >
                 <View style={[styles.modalIconContainer, { backgroundColor: '#3B82F610' }]}>
                   <Ionicons name="images" size={24} color="#3B82F6" />
@@ -494,7 +311,7 @@ const ProfileScreen = ({ navigation }) => {
 
               <TouchableOpacity
                 style={[styles.modalOption, { backgroundColor: theme.background }]}
-                onPress={takePhoto}
+                onPress={handleCameraPick}
               >
                 <View style={[styles.modalIconContainer, { backgroundColor: '#9139BA10' }]}>
                   <Ionicons name="camera" size={24} color="#9139BA" />

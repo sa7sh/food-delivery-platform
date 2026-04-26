@@ -156,9 +156,11 @@ export const useUserStore = create((set, get) => ({
   fetchFavorites: async () => {
     try {
       const response = await userService.getFavorites();
-      set({ favorites: response.data || response || [] });
+      const favoritesData = response.favorites || response.data || (Array.isArray(response) ? response : []);
+      set({ favorites: favoritesData });
     } catch (error) {
       console.error('Failed to fetch favorites:', error);
+      set({ favorites: [] });
     }
   },
 

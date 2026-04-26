@@ -227,7 +227,7 @@ export const getOrderById = async (orderId) => {
     BACKEND INTEGRATION POINT
     Expected Response: { _id, customerId, restaurantId, items, status, totalAmount, createdAt, ... }
   */
-  return apiClient.get(`/orders/${orderId}`);
+  return apiClient.get(`/orders/restaurant/${orderId}`);
 };
 
 export const updateOrderStatus = async (orderId, status) => {
@@ -236,7 +236,7 @@ export const updateOrderStatus = async (orderId, status) => {
     Expected Request: PATCH /orders/:id/status
     Expected Response: { _id, status, ... }
   */
-  return apiClient.patch(`/orders/${orderId}/status`, { status });
+  return apiClient.patch(`/orders/restaurant/${orderId}/status`, { status });
 };
 
 // ============================================
@@ -287,7 +287,7 @@ export const deleteOrder = async (orderId) => {
     Expected Request: DELETE /orders/:id
     Expected Response: { message: "Order deleted/hidden" }
   */
-  return apiClient.delete(`/orders/${orderId}`);
+  return apiClient.delete(`/orders/restaurant/${orderId}`);
 };
 
 // ============================================

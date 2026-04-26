@@ -65,6 +65,7 @@ RestaurantPartnerExpo/
 **/node_modules/
 **/.expo/
 **/.env
+!.env.example
 **/*.log
 **/dist/
 **/build/

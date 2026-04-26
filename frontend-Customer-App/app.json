@@ -11,9 +11,6 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "updates": {
-      "enabled": false
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -36,10 +33,7 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiBaseUrl": "https://gurudipaksalviprivatelimited.com/treato-api",
-      "eas": {
-        "projectId": "e5f1e098-748e-441b-9884-2f808151ccf7"
-      }
+      "apiBaseUrl": "https://gurudipaksalviprivatelimited.com/treato-api"
     },
     "plugins": [
       [

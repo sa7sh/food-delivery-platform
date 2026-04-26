@@ -1,0 +1,43 @@
+﻿[AuthService] CWD: C:\Users\4DiN\Desktop\food-delivery3\food-delivery\FoodDeliveryApp\services\auth-service
+[AuthService] .env exists: true
+[AuthService] Mounted Routes:
+node : file:///C:/Users/4DiN/Des
+ktop/food-delivery3/food-deliver
+y/FoodDeliveryApp/services/auth-
+service/server.js:24
+At line:1 char:1
++ node server.js 2>&1 | 
+Out-File -FilePath 
+startup_error.txt -Encoding  ...
++ ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : N 
+   otSpecified: (file:///C:/Us  
+  er...ce/server.js:24:String   
+ ) [], RemoteException
+    + FullyQualifiedErrorId : N 
+   ativeCommandError
+ 
+app._router.stack.forEach((r) 
+=> {
+            ^
+
+TypeError: Cannot read 
+properties of undefined 
+(reading 'stack')
+    at file:///C:/Users/4DiN/Des
+ktop/food-delivery3/food-deliver
+y/FoodDeliveryApp/services/auth-
+service/server.js:24:13
+    at ModuleJob.run (node:inter
+nal/modules/esm/module_job:413:2
+5)
+    at async 
+onImport.tracePromise.__proto__ 
+(node:internal/modules/esm/loade
+r:660:26)
+    at async 
+asyncRunEntryPointWithESMLoader 
+(node:internal/modules/run_main:
+101:5)
+
+Node.js v24.12.0

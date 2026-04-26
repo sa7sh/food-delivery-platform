@@ -128,7 +128,7 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true };
     } catch (err) {
-      console.error('Login error:', err);
+      console.error('Login error:', err.response?.data || err);
       const errorMessage =
         err.response?.data?.message || 'Login failed. Please try again.';
       setError(errorMessage);
@@ -231,7 +231,7 @@ export const AuthProvider = ({ children }) => {
       await sendOtp(email); // From api.js
       return { success: true };
     } catch (err) {
-      console.error('Send OTP error:', err);
+      console.error('Send OTP error:', err.response?.data || err);
       const errorMessage = err.response?.data?.message || 'Failed to send OTP';
       setError(errorMessage);
       return { success: false, error: errorMessage };

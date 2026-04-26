@@ -117,4 +117,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default OrderCard;
+export default React.memo(OrderCard);

@@ -2,38 +2,45 @@ export { ROUTES } from './routes';
 export { MESSAGES } from './messages';
 
 export const ORDER_STATUS = {
-  PLACED: 'PLACED',
-  CONFIRMED: 'CONFIRMED',
-  PREPARING: 'PREPARING',
-  READY: 'READY',
-  OUT_FOR_DELIVERY: 'OUT_FOR_DELIVERY',
-  DELIVERED: 'DELIVERED',
-  CANCELLED: 'CANCELLED',
+  PLACED: 'pending',
+  CONFIRMED: 'accepted',
+  PREPARING: 'preparing',
+  READY: 'ready',
+  OUT_FOR_DELIVERY: 'out_for_delivery',
+  DELIVERED: 'completed',
+  CANCELLED: 'cancelled',
 };
 
+
 export const API_ENDPOINTS = {
-  // Auth
+  // Auth (→ Auth Service via /api/auth)
   LOGIN: '/auth/login',
   REGISTER: '/auth/register',
-  SEND_OTP: '/auth/send-otp', // Added
+  SEND_OTP: '/auth/send-otp',
   VERIFY_OTP: '/auth/verify-otp',
   FORGOT_PASSWORD: '/auth/forgot-password',
   VERIFY_RESET_OTP: '/auth/verify-reset-otp',
   RESET_PASSWORD: '/auth/reset-password',
   DELETE_ACCOUNT: '/auth/delete-account',
+  LOGOUT: '/auth/logout',
 
-  // Restaurant
-  RESTAURANTS: '/restaurants',
-  RESTAURANT_DETAIL: '/restaurants/:id',
+  // Profile (→ Auth Service)
+  PROFILE: '/auth/profile',
+  ADDRESSES: '/auth/addresses',
+
+  // Restaurants (→ Restaurant Service via /api/restaurant)
+  RESTAURANTS: '/restaurant/public',
+  RESTAURANT_DETAIL: '/restaurant/public/:id',
+
+  // Foods (→ Restaurant Service via /api/foods)
+  FOODS: '/foods/restaurant/:id',
 
   // Cart
   CART: '/cart',
 
-  // Orders
-  ORDERS: '/orders',
-  ORDER_DETAIL: '/orders/:id',
-
-  // User
-  PROFILE: '/user/profile',
-  ADDRESSES: '/user/addresses',
-};
+  // Orders (→ Order Service via /api/orders)
+  ORDERS: '/orders/customer',
+  ORDER_DETAIL: '/orders/customer/:id',
+  PLACE_ORDER: '/orders/customer/',
+  CANCEL_ORDER: '/orders/:id/cancel',
+};

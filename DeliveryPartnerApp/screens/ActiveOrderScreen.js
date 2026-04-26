@@ -9,7 +9,7 @@ import { API_URL } from '../constants/Config';
 
 const { width, height } = Dimensions.get('window');
 const API_BASE = API_URL;
-const ORDER_URL = `${API_BASE}/orders`;
+const ORDER_URL = `${API_BASE}/orders/delivery`;
 
 // Theme Colors
 const lightColors = {
@@ -72,7 +72,7 @@ export default function ActiveOrderScreen({ navigation, route }) {
 
       if (isBatch && orderIds) {
         const responses = await Promise.all(
-          orderIds.map(id => axios.get(`${ORDER_URL}/${id}/delivery-view`, { headers: { Authorization: `Bearer ${token}` } }))
+          orderIds.map(id => axios.get(`${ORDER_URL}/${id}/view`, { headers: { Authorization: `Bearer ${token}` } }))
         );
         const fetchedOrders = responses.map(res => res.data);
         setOrders(fetchedOrders);
@@ -89,7 +89,7 @@ export default function ActiveOrderScreen({ navigation, route }) {
           setStatus('ACCEPTED');
         }
       } else {
-        const response = await axios.get(`${ORDER_URL}/${orderId}/delivery-view`, {
+        const response = await axios.get(`${ORDER_URL}/${orderId}/view`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const orderData = response.data;
@@ -133,9 +133,9 @@ export default function ActiveOrderScreen({ navigation, route }) {
       if (!token) return;
 
       if (isBatch && orderIds) {
-        await axios.post(`${ORDER_URL}/delivery/batch-reached`, { orderIds }, { headers: { Authorization: `Bearer ${token}` } });
+        await axios.post(`${ORDER_URL}/batch-reached`, { orderIds }, { headers: { Authorization: `Bearer ${token}` } });
       } else {
-        await axios.patch(`${ORDER_URL}/${orderId}/delivery-reached`, {}, { headers: { Authorization: `Bearer ${token}` } });
+        await axios.patch(`${ORDER_URL}/${orderId}/reached`, {}, { headers: { Authorization: `Bearer ${token}` } });
       }
 
       clearInterval(timerRef.current);
@@ -155,9 +155,9 @@ export default function ActiveOrderScreen({ navigation, route }) {
       if (!token) return;
 
       if (isBatch && orderIds) {
-        await axios.post(`${ORDER_URL}/delivery/batch-pickup`, { orderIds }, { headers: { Authorization: `Bearer ${token}` } });
+        await axios.post(`${ORDER_URL}/batch-pickup`, { orderIds }, { headers: { Authorization: `Bearer ${token}` } });
       } else {
-        await axios.patch(`${ORDER_URL}/${orderId}/delivery-pickup`, {}, { headers: { Authorization: `Bearer ${token}` } });
+        await axios.patch(`${ORDER_URL}/${orderId}/pickup`, {}, { headers: { Authorization: `Bearer ${token}` } });
       }
 
       setStatus('PICKED_UP');
@@ -177,10 +177,10 @@ export default function ActiveOrderScreen({ navigation, route }) {
 
       if (isBatch && orderIds) {
         await Promise.all(orderIds.map(id =>
-          axios.patch(`${ORDER_URL}/${id}/delivery-complete`, {}, { headers: { Authorization: `Bearer ${token}` } })
+          axios.patch(`${ORDER_URL}/${id}/complete`, {}, { headers: { Authorization: `Bearer ${token}` } })
         ));
       } else {
-        await axios.patch(`${ORDER_URL}/${orderId}/delivery-complete`, {}, { headers: { Authorization: `Bearer ${token}` } });
+        await axios.patch(`${ORDER_URL}/${orderId}/complete`, {}, { headers: { Authorization: `Bearer ${token}` } });
       }
 
       Alert.alert("Success", "Delivery Completed!");

@@ -1,15 +1,18 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'; // Removed Image from RN
-import { Image } from 'expo-image'; // Added Image from expo-image
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../../../hooks/useTheme';
 
 export default function FoodCard({ food, onPress }) {
-  // Safe defaults
+  const { colors, isDark } = useTheme();
+
   const {
     image = 'https://via.placeholder.com/300',
     discount,
+    offers,
     rating = '4.5',
     time = '25-30 min',
     name = 'Food Item',
@@ -18,17 +21,14 @@ export default function FoodCard({ food, onPress }) {
     isVeg = true,
   } = food || {};
 
-  // Extract restaurant info if populated
   const restaurantName = restaurantId?.name || 'Restaurant';
   const cuisineType = restaurantId?.cuisineType || type;
-
-  // Blurhash for placeholder
   const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={styles.card}
+      style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
       activeOpacity={0.9}
     >
       {/* Image Section */}
@@ -40,33 +40,26 @@ export default function FoodCard({ food, onPress }) {
           transition={1000}
           style={styles.image}
         />
-        {/* Gradient Overlay */}
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.6)']}
           style={styles.gradient}
         />
 
-        {/* Discount Badge */}
-        {discount && (
+        {offers && offers.length > 0 && (
           <View style={styles.discountBadge}>
-            <Text style={styles.discountText}>
-              {discount}
-            </Text>
+            <Text style={styles.discountText}>{offers[0]}</Text>
           </View>
         )}
 
-        {/* Like Button */}
         <TouchableOpacity style={styles.likeBtn}>
           <Ionicons name="heart-outline" size={14} color="white" />
         </TouchableOpacity>
 
-        {/* Rating Badge */}
         <BlurView intensity={30} tint="dark" style={styles.ratingBadge}>
           <Text style={styles.ratingText}>{rating}</Text>
           <Ionicons name="star" size={10} color="#FFD700" />
         </BlurView>
 
-        {/* Time Badge */}
         <View style={styles.timeBadge}>
           <Text style={styles.timeText}>{time}</Text>
         </View>
@@ -74,14 +67,13 @@ export default function FoodCard({ food, onPress }) {
 
       {/* Content Section */}
       <View style={styles.content}>
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
           {name}
         </Text>
 
-        {/* Restaurant Info */}
         <View style={styles.restaurantInfo}>
-          <Ionicons name="restaurant-outline" size={12} color="#9139BA" />
-          <Text style={styles.restaurantName} numberOfLines={1}>
+          <Ionicons name="restaurant-outline" size={12} color={colors.primary[500]} />
+          <Text style={[styles.restaurantName, { color: colors.primary[500] }]} numberOfLines={1}>
             {restaurantName}
           </Text>
           <View style={[styles.vegIcon, { borderColor: isVeg ? '#22C55E' : '#EF4444' }]}>
@@ -89,15 +81,14 @@ export default function FoodCard({ food, onPress }) {
           </View>
         </View>
 
-        <Text style={styles.subtitle} numberOfLines={1}>
+        <Text style={[styles.subtitle, { color: colors.textSub }]} numberOfLines={1}>
           {cuisineType}
         </Text>
 
-        {/* Action/Delivery Text */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, { borderTopColor: colors.border }]}>
           <View style={styles.deliveryInfo}>
-            <Ionicons name="bicycle" size={12} color="#9139BA" style={{ marginRight: 4 }} />
-            <Text style={styles.deliveryText}>Free Delivery</Text>
+            <Ionicons name="bicycle" size={12} color={colors.primary[500]} style={{ marginRight: 4 }} />
+            <Text style={[styles.deliveryText, { color: colors.textSub }]}>Free Delivery</Text>
           </View>
         </View>
       </View>
@@ -110,9 +101,7 @@ const styles = StyleSheet.create({
     width: 160,
     marginRight: 16,
     borderRadius: 20,
-    backgroundColor: '#1E1E2E', // Dark card bg
     borderWidth: 1,
-    borderColor: '#2D2D44',
     overflow: 'hidden',
   },
   imageContainer: {
@@ -192,7 +181,6 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   title: {
-    color: '#fff',
     fontSize: 14,
     fontWeight: '700',
     marginBottom: 4,
@@ -204,13 +192,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   restaurantName: {
-    color: '#9139BA',
     fontSize: 11,
     fontWeight: '600',
     flex: 1,
   },
   subtitle: {
-    color: '#94A3B8',
     fontSize: 12,
     fontWeight: '500',
     marginBottom: 12,
@@ -221,14 +207,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   deliveryInfo: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   deliveryText: {
-    color: '#CBD5E1',
     fontSize: 10,
     fontWeight: '600',
   },

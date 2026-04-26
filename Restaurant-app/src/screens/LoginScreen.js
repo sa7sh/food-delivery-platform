@@ -45,6 +45,7 @@ const LoginScreen = ({ navigation }) => {
   }, [timer]);
 
   const handleLogin = async () => {
+    console.log('[LoginScreen] handleLogin clicked. Mode:', loginMode, 'otpSent:', otpSent);
     // Validation
     if (!email.trim()) {
       Alert.alert('Error', 'Please enter your email');

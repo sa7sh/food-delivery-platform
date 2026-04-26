@@ -4,9 +4,7 @@ import { API_ENDPOINTS } from '../../../constants';
 export const restaurantService = {
   // Get all restaurants
   async getRestaurants(params) {
-    // Fetch all restaurants from backend
-    // Base URL already includes /api, so just use /public/restaurants
-    return httpClient.get('/public/restaurants', { params });
+    return httpClient.get(API_ENDPOINTS.RESTAURANTS, { params });
   },
 
   // Get restaurant detail
@@ -19,6 +17,6 @@ export const restaurantService = {
   // Get restaurant menu
   async getRestaurantMenu(restaurantId) {
     // TODO: Replace with actual API call
-    return httpClient.get(`/restaurants/${restaurantId}/menu`);
+    return httpClient.get(`/foods/restaurant/${restaurantId}`);
   },
 };

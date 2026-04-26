@@ -29,13 +29,6 @@ export default function OrdersListScreen() {
 
   useEffect(() => {
     loadOrders();
-
-    // Poll for order updates every 30 seconds to keep list fresh (reduced from 15s for better performance)
-    const interval = setInterval(() => {
-      loadOrders();
-    }, 30000);
-
-    return () => clearInterval(interval);
   }, []);
 
   const loadOrders = async () => { await fetchOrders(); };

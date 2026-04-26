@@ -45,7 +45,7 @@ export const orderService = {
   async rateDeliveryPartner(ratingData) {
     try {
       console.log('[OrderService] rateDeliveryPartner called with:', JSON.stringify(ratingData, null, 2));
-      const response = await httpClient.post('/delivery-rating/rate', ratingData);
+      const response = await httpClient.post('/delivery/ratings/rate', ratingData);
       console.log('[OrderService] rateDeliveryPartner response:', response);
       return response;
     } catch (error) {

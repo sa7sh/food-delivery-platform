@@ -116,318 +116,15 @@ const PROMOTIONS = [
 
 // --- REUSABLE COMPONENTS ---
 
-const FadeInView = ({ delay = 0, children }) => {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
+import { FadeInView } from '../components/FadeInView';
+import { HeaderGlass } from '../components/HeaderGlass';
+import { PromotionsCarousel } from '../components/PromotionsCarousel';
+import { CategoryPill } from '../components/CategoryPill';
+import { FilterModal } from '../components/FilterModal';
+import RestaurantCard from '../components/RestaurantCard';
+import RestaurantCardMemo from '../components/RestaurantCard';
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 600, delay, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 600, delay, useNativeDriver: true }),
-    ]).start();
-  }, []);
-
-  return (
-    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-      {children}
-    </Animated.View>
-  );
-};
-
-const HeaderGlass = ({ scrollY, colors, isDark, selectedAddress, profile }) => {
-  const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
-
-  // Animate blur intensity and border opacity based on scroll
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [0.7, 1],
-    extrapolate: 'clamp',
-  });
-
-  const handleLocationPress = () => {
-    // Navigate to Profile -> Saved Addresses
-    navigation.navigate(ROUTES.PROFILE, {
-      screen: ROUTES.SAVED_ADDRESSES
-    });
-  };
-
-  const profileImageSource = profile?.profileImage
-    ? { uri: profile.profileImage }
-    : { uri: 'https://i.pravatar.cc/150?img=12' }; // Fallback existing placeholder
-
-  return (
-    <View style={[styles.headerWrapper, { paddingTop: insets.top }]}>
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: headerOpacity }]}>
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(20,20,20,1)' : '#C9A6DB' }]} />
-        <View style={[styles.headerBorder, { backgroundColor: colors.border }]} />
-      </Animated.View>
-
-      <View style={styles.headerContent}>
-        <TouchableOpacity style={styles.locationBtn} onPress={handleLocationPress} activeOpacity={0.7}>
-          <View style={[styles.iconCircle, { backgroundColor: colors.surfaceHighlight, borderColor: colors.border }]}>
-            <Ionicons name="location" size={18} color="#9139BA" />
-          </View>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={[styles.locationLabel, { color: colors.textSub }]}>DELIVERING TO</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
-                {selectedAddress ? selectedAddress.label : 'Select Location'} • {selectedAddress ? (selectedAddress.street || selectedAddress.city) : 'Add Address'}
-              </Text>
-              <Ionicons name="chevron-down" size={14} color={colors.textSub} style={{ marginLeft: 4 }} />
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.profileBtn, { borderColor: colors.surface }]}
-          onPress={() => navigation.navigate(ROUTES.PROFILE)}
-        >
-          <Image source={profileImageSource} style={styles.profileImg} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-};
-
-const SearchSection = ({ colors, isDark }) => (
-  <View style={styles.searchSection}>
-    <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: isDark ? '#000' : '#64748B' }]}>
-      <Ionicons name="search-outline" size={20} color={colors.textSub} />
-      <TextInput
-        placeholder="Food, groceries, drinks, etc."
-        placeholderTextColor={colors.textSub}
-        style={[styles.searchInput, { color: colors.text }]}
-      />
-      <View style={[styles.searchDivider, { backgroundColor: colors.border }]} />
-      <TouchableOpacity>
-        <Ionicons name="options-outline" size={20} color="#9139BA" />
-      </TouchableOpacity>
-    </View>
-  </View>
-);
-
-const PromotionsCarousel = ({ colors, isDark, label }) => {
-  return (
-    <View style={styles.promoContainer}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.promoScroll}
-        decelerationRate="fast"
-        snapToInterval={width * 0.9} // Snap to card width + margin
-        snapToAlignment="start"
-      >
-        {PROMOTIONS.map((item) => (
-          <TouchableOpacity
-            key={item.id}
-            activeOpacity={0.9}
-            style={[styles.promoCard, { backgroundColor: colors.surface }]}
-            onPress={() => Alert.alert('Coming Soon', 'This feature is coming soon!')}
-          >
-            <Image source={{ uri: item.image }} style={styles.promoImg} />
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.8)']}
-              style={styles.promoGradient}
-            />
-            <View style={styles.promoContent}>
-              <View style={[styles.promoTag, { backgroundColor: item.color }]}>
-                <Text style={styles.promoTagText}>{label || 'LIMITED OFFER'}</Text>
-              </View>
-              <Text style={styles.promoTitle}>{item.title}</Text>
-              <Text style={styles.promoSubtitle}>{item.subtitle}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  );
-};
-
-const CategoryPill = ({ item, colors }) => {
-  const navigation = useNavigation();
-  return (
-    <TouchableOpacity
-      style={styles.catPill}
-      onPress={() => navigation.navigate(ROUTES.SEARCH, { query: item.name })}
-    >
-      <View style={[styles.catImgWrap, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
-        <Image source={{ uri: item.image }} style={styles.catImg} />
-      </View>
-      <Text style={[styles.catText, { color: colors.text }]}>{item.name}</Text>
-    </TouchableOpacity>
-  );
-};
-
-const RestaurantCard = ({ item, onPress, colors, isDark, isFavorite, onToggleFavorite }) => (
-  <TouchableOpacity activeOpacity={0.9} style={[styles.card, { backgroundColor: colors.surface, shadowColor: isDark ? '#000' : '#64748B' }]} onPress={onPress}>
-    <View style={styles.cardImgContainer}>
-      <Image source={{ uri: item.image }} style={styles.cardImg} />
-      {!item.isOpen && (
-        <View style={styles.closedOverlay}>
-          <Text style={styles.closedText}>Closed</Text>
-        </View>
-      )}
-      {item.promo && (
-        <View style={[styles.promoBadge, { backgroundColor: '#9139BA' }]}>
-          <Text style={styles.promoText}>{item.promo}</Text>
-        </View>
-      )}
-      <TouchableOpacity style={styles.favBtn} onPress={onToggleFavorite}>
-        <Ionicons name={isFavorite ? "heart" : "heart-outline"} size={20} color={isFavorite ? "#E23744" : "#fff"} />
-      </TouchableOpacity>
-      <View style={[styles.timeChip, { backgroundColor: colors.surface }]}>
-        <Text style={[styles.timeText, { color: colors.text }]}>{item.time}</Text>
-      </View>
-    </View>
-
-    <View style={styles.cardInfo}>
-      <View style={styles.cardHeader}>
-        <Text style={[styles.restName, { color: colors.text }]}>{item.name}</Text>
-        <View style={[styles.ratingBadge, { backgroundColor: colors.success }]}>
-          <Text style={styles.ratingText}>{item.rating}</Text>
-          <Ionicons name="star" size={10} color="#fff" style={{ marginLeft: 2 }} />
-        </View>
-      </View>
-
-      <View style={styles.cardMeta}>
-        <Text style={[styles.metaText, { color: colors.textSub }]}>{item.tags.join(' • ')}</Text>
-        <View style={[styles.dot, { backgroundColor: colors.textSub }]} />
-        <Text style={[styles.metaText, { color: colors.textSub }]}>{item.deliveryFee}</Text>
-      </View>
-    </View>
-  </TouchableOpacity>
-);
-
-// FloatingNav component moved to src/navigation/FloatingTabBar.js
-
-const FilterModal = ({ visible, onClose, onApply, activeFilters, onReset }) => {
-  const [localFilters, setLocalFilters] = useState(activeFilters);
-  const { colors, isDark } = useTheme();
-
-  useEffect(() => {
-    setLocalFilters(activeFilters);
-  }, [visible, activeFilters]);
-
-  const toggleCuisine = (cuisine) => {
-    setLocalFilters(prev => ({
-      ...prev,
-      cuisine: prev.cuisine === cuisine ? null : cuisine
-    }));
-  };
-
-  const toggleOpen = () => {
-    setLocalFilters(prev => ({
-      ...prev,
-      isOpen: !prev.isOpen
-    }));
-  };
-
-  return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalOverlay}>
-        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1}>
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
-        </TouchableOpacity>
-
-        <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-          {/* Drag Handle */}
-          <View style={styles.dragHandleContainer}>
-            <View style={[styles.dragHandle, { backgroundColor: colors.border }]} />
-          </View>
-
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Filter</Text>
-            <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
-              <Ionicons name="close" size={20} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.filterSection}>
-            <Text style={[styles.filterLabel, { color: colors.textSub }]}>AVAILABILITY</Text>
-            <TouchableOpacity
-              style={[
-                styles.filterOptionRow,
-                {
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.background,
-                  borderColor: localFilters.isOpen ? '#9139BA' : colors.border,
-                  borderWidth: 1
-                }
-              ]}
-              onPress={toggleOpen}
-              activeOpacity={0.7}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="time-outline" size={22} color={localFilters.isOpen ? '#9139BA' : colors.textSub} style={{ marginRight: 12 }} />
-                <Text style={[styles.filterOptionText, { color: colors.text }]}>Open Now</Text>
-              </View>
-
-              <View style={[
-                styles.toggleCircle,
-                {
-                  backgroundColor: localFilters.isOpen ? '#9139BA' : 'transparent',
-                  borderColor: localFilters.isOpen ? '#9139BA' : colors.textSub
-                }
-              ]}>
-                {localFilters.isOpen && <Ionicons name="checkmark" size={14} color="#fff" />}
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.filterSection}>
-            <Text style={[styles.filterLabel, { color: colors.textSub }]}>CUISINES</Text>
-            <View style={styles.chipContainer}>
-              {CATEGORIES.map(cat => {
-                const isActive = localFilters.cuisine === cat.name;
-                return (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: isActive ? '#9139BA' : (isDark ? 'rgba(255,255,255,0.05)' : colors.background),
-                        borderColor: isActive ? '#9139BA' : colors.border,
-                      }
-                    ]}
-                    onPress={() => toggleCuisine(cat.name)}
-                  >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        { color: isActive ? '#fff' : colors.text }
-                      ]}
-                    >
-                      {cat.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          <View style={styles.modalFooter}>
-            <TouchableOpacity onPress={onReset} style={styles.resetBtn}>
-              <Text style={[styles.resetText, { color: colors.textSub }]}>Reset</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => onApply(localFilters)}
-              style={[styles.applyBtn, { backgroundColor: '#9139BA' }]}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.applyText}>Apply Filters</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
+// --- MAIN SCREEN ---
 
 // --- MAIN SCREEN ---
 export default function HomeScreen() {
@@ -455,58 +152,73 @@ export default function HomeScreen() {
       const hasFilters = query.trim() !== '' || filters.cuisine || filters.isOpen;
       setIsFiltered(hasFilters);
 
+      // Using local IP for physical device connectivity
+      const BASE_URL = 'http://192.168.29.228:5000';
+
       if (hasFilters) {
         // Fetch Restaurants matching filters/query
-        const restParams = {
-          query: query,
-          cuisine: filters.cuisine,
-          isOpen: filters.isOpen
-        };
-        const fetchedRestaurants = await restaurantService.getRestaurants(restParams);
-        setFilteredRestaurants(fetchedRestaurants || []);
-
-        // Fetch Foods matching filters/query
-        const foodParams = {
-          query: query || (filters.cuisine ? filters.cuisine : ' '), // If only cuisine selected, strict filter might be tricky, but query helps. Or we can just search.
-          // Note: foodService.searchFoods uses /foods/search which expects 'query'. 
-          // If query is empty but cuisine is selected, we might want to query by cuisine name or rely on backend to handle empty query if we update it.
-          // Current backend implementation of /search: requires query or just regex matches. 
-          // If query is empty strings, regex matches everything.
-          isOpen: filters.isOpen
-        };
-
-        // Slightly hacky: passing cuisine as query if query is empty for food search
-        const foodQuery = query || filters.cuisine || '';
-        const fetchedFoods = await foodService.searchFoods(foodQuery); // Note: this calls /foods/search?query=...&isOpen=...
-
-        // If cuisine is selected, we should filter foods by category manually if backend doesn't support 'cuisine' param on /search
-        // Backend /search uses query against name. It DOES NOT filter by category yet unless we update it. 
-        // OPTIONAL FIXME: Update backend to support category on /search. 
-        // For now, let's filter client side if needed or assume query covers it.
-
-        let validFoods = fetchedFoods || [];
-        if (filters.cuisine) {
-          validFoods = validFoods.filter(f =>
-            f.category?.toLowerCase().includes(filters.cuisine.toLowerCase()) ||
-            f.description?.toLowerCase().includes(filters.cuisine.toLowerCase())
-          );
+        const restUrl = `${BASE_URL}/api/restaurant/public?query=${encodeURIComponent(query)}&cuisine=${filters.cuisine || ''}&isOpen=${filters.isOpen}`;
+        
+        const response = await fetch(restUrl, {
+          headers: refreshing ? { 'x-refresh-cache': 'true' } : {}
+        });
+        const contentType = response.headers.get("content-type");
+        
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+          const fetchedRestaurants = await response.json();
+          setFilteredRestaurants(fetchedRestaurants || []);
+        } else {
+          console.error("Non-JSON response for restaurants:", await response.text());
+          setFilteredRestaurants([]);
         }
 
-        setFilteredFoods(validFoods);
+        // Fetch Foods matching filters/query
+        const foodQuery = query || filters.cuisine || '';
+        const foodUrl = `${BASE_URL}/api/foods/search?query=${encodeURIComponent(foodQuery)}&isOpen=${filters.isOpen}`;
+        
+        const foodResponse = await fetch(foodUrl);
+        const foodContentType = foodResponse.headers.get("content-type");
+
+        if (foodContentType && foodContentType.indexOf("application/json") !== -1) {
+          const fetchedFoods = await foodResponse.json();
+          let validFoods = fetchedFoods || [];
+          if (filters.cuisine) {
+            validFoods = validFoods.filter(f =>
+              f.category?.toLowerCase().includes(filters.cuisine.toLowerCase()) ||
+              f.description?.toLowerCase().includes(filters.cuisine.toLowerCase())
+            );
+          }
+          setFilteredFoods(validFoods);
+        } else {
+          console.error("Non-JSON response for foods:", await foodResponse.text());
+          setFilteredFoods([]);
+        }
 
       } else {
         // Default Load - Just Restaurants (Popular)
-        const response = await restaurantService.getRestaurants();
-        console.log('Fetched Restaurants:', response);
-        const fetchedRestaurants = response.restaurants || response || []; // Handle { restaurants: [...] } or [...]
+        const restUrl = `${BASE_URL}/api/restaurant/public`;
+        const response = await fetch(restUrl, {
+          headers: refreshing ? { 'x-refresh-cache': 'true' } : {}
+        });
+        const contentType = response.headers.get("content-type");
 
-        const validRestaurants = Array.isArray(fetchedRestaurants)
-          ? fetchedRestaurants.filter(r => r.name && r.name.trim() !== '')
-          : [];
-        setRestaurants(validRestaurants);
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+          const fetchedRestaurants = await response.json();
+          console.log('Fetched Restaurants:', fetchedRestaurants);
+          
+          const validRestaurants = Array.isArray(fetchedRestaurants)
+            ? fetchedRestaurants.filter(r => r.name && r.name.trim() !== '')
+            : [];
+          setRestaurants(validRestaurants);
+        } else {
+          const text = await response.text();
+          console.error("Non-JSON response for popular restaurants:", text);
+          Alert.alert("API Error", "Received invalid response from server. Please check backend logs.");
+        }
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
+      Alert.alert("Connection Error", "Failed to connect to backend server at 192.168.29.228:5000");
     } finally {
       setLoading(false);
     }
@@ -591,7 +303,7 @@ export default function HomeScreen() {
       <StatusBar style={isDark ? "light" : "dark"} />
 
       {/* 1. Header Layer */}
-      <HeaderGlass scrollY={scrollY} colors={colors} isDark={isDark} selectedAddress={selectedAddress} profile={profile} />
+      <HeaderGlass scrollY={scrollY} colors={colors} isDark={isDark} selectedAddress={selectedAddress} profile={profile} styles={styles} />
 
       {/* 2. Scrollable Content */}
       <Animated.ScrollView
@@ -670,7 +382,7 @@ export default function HomeScreen() {
                       {filteredRestaurants.map(rest => (
                         <View key={rest._id} style={{ width: width * 0.75, marginRight: 16 }}>
                           <RestaurantCard
-                            item={{
+                            restaurant={{
                               id: rest._id,
                               name: rest.name,
                               rating: rest.averageRating || 0,
@@ -682,6 +394,8 @@ export default function HomeScreen() {
                               isOpen: rest.isOpen,
                               promo: null,
                             }}
+                            restaurantImage={rest.restaurantImage}
+                            profileImage={rest.profileImage}
                             colors={colors}
                             isDark={isDark}
                             onPress={() => handleRestaurantPress(rest)}
@@ -734,7 +448,7 @@ export default function HomeScreen() {
           <>
             {/* Promotions Carousel */}
             <FadeInView delay={150}>
-              <PromotionsCarousel colors={colors} isDark={isDark} />
+              <PromotionsCarousel colors={colors} isDark={isDark} styles={styles} />
             </FadeInView>
 
             {/* Featured Campaigns */}
@@ -765,7 +479,7 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catScroll}>
-                {CATEGORIES.map(cat => <CategoryPill key={cat.id} item={cat} colors={colors} />)}
+                {CATEGORIES.map(cat => <CategoryPill key={cat.id} item={cat} colors={colors} styles={styles} />)}
               </ScrollView>
             </FadeInView>
 
@@ -784,7 +498,7 @@ export default function HomeScreen() {
                     restaurants.map(rest => (
                       <RestaurantCard
                         key={rest._id}
-                        item={{
+                        restaurant={{
                           id: rest._id,
                           name: rest.name,
                           rating: rest.averageRating || 0,
@@ -792,7 +506,9 @@ export default function HomeScreen() {
                           time: '25-35 min',
                           deliveryFee: 'Free',
                           tags: [rest.cuisineType || 'Restaurant'],
-                          image: rest.profileImage || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=800&auto=format&fit=crop',
+                          restaurantImage: rest.restaurantImage,
+                          profileImage: rest.profileImage,
+                          image: rest.restaurantImage || rest.profileImage || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=800&auto=format&fit=crop',
                           isOpen: rest.isOpen,
                           promo: null,
                         }}
@@ -827,6 +543,7 @@ export default function HomeScreen() {
         activeFilters={activeFilters}
         onApply={applyFilters}
         onReset={resetFilters}
+        styles={styles}
       />
     </View>
   );

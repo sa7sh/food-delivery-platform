@@ -27,7 +27,7 @@ class ErrorBoundary extends React.Component {
           <Text style={styles.icon}>😕</Text>
           <Text style={styles.title}>Oops! Something went wrong</Text>
           <Text style={styles.message}>
-            We're sorry for the inconvenience. Please try again.
+            {this.state.error?.toString()}
           </Text>
           <TouchableOpacity
             style={styles.button}

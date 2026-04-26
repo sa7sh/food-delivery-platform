@@ -1,6 +1,10 @@
 // Format currency in INR
 export const formatCurrency = (amount) => {
-  return `₹${amount.toFixed(2)}`;
+  if (amount === undefined || amount === null || isNaN(amount)) {
+    return '₹0.00';
+  }
+  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  return `₹${(numericAmount || 0).toFixed(2)}`;
 };
 
 // Format date and time

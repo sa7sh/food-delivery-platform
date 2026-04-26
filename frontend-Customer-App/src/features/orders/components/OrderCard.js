@@ -17,34 +17,34 @@ export default function OrderCard({ order, onPress, onReorder }) {
     createdAt,
   } = order;
 
-  // Determine status color/text
+  // Determine status color/text — backend sends lowercase statuses
   const getStatusInfo = (status) => {
-    const normalizedStatus = status?.toUpperCase();
-    switch (normalizedStatus) {
-      case ORDER_STATUS.PLACED:
-      case 'PENDING':
-        return { text: 'Placed', color: '#F59E0B', bg: '#FEF3C7' }; // Amber
-      case ORDER_STATUS.CONFIRMED:
-      case 'ACCEPTED':
-        return { text: 'Confirmed', color: '#3B82F6', bg: '#DBEAFE' }; // Blue
-      case ORDER_STATUS.PREPARING:
-        return { text: 'Preparing', color: '#8B5CF6', bg: '#EDE9FE' }; // Violet
-      case ORDER_STATUS.READY:
-      case 'READY':
-        return { text: 'Order Ready', color: '#10B981', bg: '#D1FAE5' }; // Emerald
-      case ORDER_STATUS.OUT_FOR_DELIVERY:
-        return { text: 'Out for Delivery', color: '#F59E0B', bg: '#FEF3C7' }; // Amber/Orange for transit? Or keep Green?
-      case ORDER_STATUS.DELIVERED:
-      case 'COMPLETED':
-        return { text: 'Delivered', color: '#6B7280', bg: '#F3F4F6' }; // Gray
-      case ORDER_STATUS.CANCELLED:
-        return { text: 'Cancelled', color: '#EF4444', bg: '#FEE2E2' }; // Red
-      case 'REACHED_RESTAURANT':
-        return { text: 'Reached Restaurant', color: '#0D9488', bg: '#CCFBF1' }; // Teal
+    const s = status?.toLowerCase();
+    switch (s) {
+      case ORDER_STATUS.PLACED:      // 'pending'
+      case 'placed':
+        return { text: 'Placed', color: '#F59E0B', bg: '#FEF3C7' };
+      case ORDER_STATUS.CONFIRMED:   // 'accepted'
+      case 'confirmed':
+        return { text: 'Confirmed', color: '#3B82F6', bg: '#DBEAFE' };
+      case ORDER_STATUS.PREPARING:   // 'preparing'
+        return { text: 'Preparing', color: '#8B5CF6', bg: '#EDE9FE' };
+      case ORDER_STATUS.READY:       // 'ready'
+        return { text: 'Order Ready', color: '#10B981', bg: '#D1FAE5' };
+      case ORDER_STATUS.OUT_FOR_DELIVERY:  // 'out_for_delivery'
+        return { text: 'Out for Delivery', color: '#F59E0B', bg: '#FEF3C7' };
+      case 'reached_restaurant':
+        return { text: 'Reached Restaurant', color: '#0D9488', bg: '#CCFBF1' };
+      case ORDER_STATUS.DELIVERED:   // 'completed'
+      case 'delivered':
+        return { text: 'Delivered', color: '#6B7280', bg: '#F3F4F6' };
+      case ORDER_STATUS.CANCELLED:   // 'cancelled'
+        return { text: 'Cancelled', color: '#EF4444', bg: '#FEE2E2' };
       default:
         return { text: status || 'Unknown', color: colors.textSub, bg: colors.surfaceHighlight };
     }
   };
+
 
   const statusInfo = getStatusInfo(status);
 

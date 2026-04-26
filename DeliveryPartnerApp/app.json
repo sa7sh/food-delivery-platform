@@ -2,19 +2,19 @@
   "expo": {
     "name": "Treato Go",
     "slug": "DeliveryPartnerApp",
-    "version": "1.0.0",
-    "icon": "./assets/logo.png",
+    "version": "1.0.1",
+    "icon": "./assets/icon.png",
     "splash": {
-      "image": "./assets/logo.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "android": {
       "package": "com.yourname.deliverypartnerapp",
-      "versionCode": 5,
+      "versionCode": 6,
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [],

@@ -1,14 +1,16 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { colors } from '../../../theme';
+import { useTheme } from '../../../hooks/useTheme';
 
 export default function Card({ children, onPress, style, elevated = true }) {
   const Container = onPress ? TouchableOpacity : View;
+  const { colors } = useTheme();
 
   return (
     <Container
       style={[
         styles.card,
+        { backgroundColor: colors.surface },
         elevated && styles.elevated,
         style,
       ]}
@@ -22,12 +24,11 @@ export default function Card({ children, onPress, style, elevated = true }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.white,
     borderRadius: 12,
     padding: 16,
   },
   elevated: {
-    shadowColor: colors.black,
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,

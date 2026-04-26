@@ -40,19 +40,18 @@ export const OrderProvider = ({ children }) => {
     }
   }, [isAuthenticated]);
 
-  // Socket.IO setup (prepared for backend integration)
+  // Socket.IO setup (reacts to authentication changes)
   useEffect(() => {
     let socketConnection = null;
 
     const setupSocket = async () => {
-      const token = await AsyncStorage.getItem('restaurantData');
-      // Note: restaurantData contains the object. We need the ID to join room.
-      // Actually server expects joinRestaurantRoom(ID). 
-      // Auth is handled via token or we can just send ID for room joining.
+      if (!isAuthenticated) return;
 
-      if (!token) return;
-      const restaurant = JSON.parse(token);
+      const tokenStr = await AsyncStorage.getItem('restaurantData');
+      if (!tokenStr) return;
+      const restaurant = JSON.parse(tokenStr);
 
+      console.log('Initializing Socket for Restaurant:', restaurant._id);
       socketConnection = io(ENV.SOCKET_URL, {
         transports: ['websocket'],
       });
@@ -65,7 +64,6 @@ export const OrderProvider = ({ children }) => {
       socketConnection.on('newOrder', (order) => {
         console.log('New Order Received via Socket!', order._id);
         setOrders((prevOrders) => [order, ...prevOrders]);
-        // Optional: Trigger Haptic feedback or Sound here
       });
 
       socketConnection.on('orderUpdated', (updatedOrder) => {
@@ -76,7 +74,14 @@ export const OrderProvider = ({ children }) => {
         );
       });
 
-      // setSocket(socketConnection);
+      socketConnection.on('orderDeliveryAccepted', (updatedOrder) => {
+        console.log('Delivery Partner Accepted Order:', updatedOrder._id);
+        setOrders((prevOrders) =>
+          prevOrders.map((order) =>
+            order._id === updatedOrder._id ? { ...order, ...updatedOrder } : order
+          )
+        );
+      });
     };
 
     setupSocket();
@@ -86,7 +91,7 @@ export const OrderProvider = ({ children }) => {
         socketConnection.disconnect();
       }
     };
-  }, []);
+  }, [isAuthenticated]);
 
   // Get single order by ID
   const fetchOrderById = async (orderId) => {

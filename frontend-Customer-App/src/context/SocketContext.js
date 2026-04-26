@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import io from 'socket.io-client';
 import { useAuth } from '../hooks/useAuth';
+import { useOrdersStore } from '../store/ordersStore';
 import { API_ENDPOINTS } from '../constants';
 
 const SocketContext = createContext();
@@ -12,6 +13,7 @@ export const useSocket = () => {
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const { user, isAuthenticated } = useAuth();
+  const { handleOrderStatusUpdate } = useOrdersStore();
 
   // Hardcoded for now based on your setup, or derived from constants
   // Ideally this should come from a centralized config
@@ -30,6 +32,11 @@ export const SocketProvider = ({ children }) => {
       socketConnection.on('connect', () => {
         console.log('Socket Connected via Context:', socketConnection.id);
         socketConnection.emit('joinCustomerRoom', user._id);
+      });
+
+      socketConnection.on('orderStatusUpdated', (data) => {
+        console.log('Order Status Updated via Socket:', data);
+        handleOrderStatusUpdate(data);
       });
 
       socketConnection.on('disconnect', () => {

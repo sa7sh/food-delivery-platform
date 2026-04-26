@@ -15,8 +15,10 @@ import Skeleton from '../components/Skeleton';
 import { useFocusEffect } from '@react-navigation/native';
 const { width } = Dimensions.get('window');
 const API_BASE = API_URL;
-const DRIVER_URL = `${API_BASE}/driver`;
-const ORDER_URL = `${API_BASE}/orders`;
+// Partners & status routes → /api/delivery/*
+const DRIVER_URL = `${API_BASE}/delivery/partners`;
+// Order routes for delivery → /api/orders/*
+const ORDER_URL = `${API_BASE}/orders/delivery`;
 
 // Professional Order Card Component 
 const OrderCard = ({ restaurant, distance, pay, items, location, onAccept, onDelete, timestamp, theme }) => {
@@ -152,7 +154,7 @@ export default function HomeScreen({ navigation }) {
     try {
       if (!token) return;
 
-      const fullUrl = `${ORDER_URL}/hide/${orderId}`;
+      const fullUrl = `${ORDER_URL}/${orderId}/hide`;
 
       // Call backend to hide order permanently for this partner
       const response = await axios.patch(fullUrl, {}, {
@@ -176,7 +178,7 @@ export default function HomeScreen({ navigation }) {
       if (!token) return;
       setLoading(true);
 
-      const response = await axios.get(`${ORDER_URL}/delivery/available`, {
+      const response = await axios.get(`${ORDER_URL}/available`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -203,19 +205,42 @@ export default function HomeScreen({ navigation }) {
 
   // Toggle Status
   const toggleStatus = async (value) => {
+    // Get the freshest token directly from the store at call time
+    const currentToken = useDeliveryAuthStore.getState().token;
+
+    if (!currentToken) {
+      Alert.alert('Not Logged In', 'Please log out and log back in to refresh your session.');
+      return;
+    }
+
+    // Optimistically update UI
+    setIsOnline(value);
+
     try {
-      setIsOnline(value);
-      if (token) {
-        await axios.post(`${DRIVER_URL}/status`, { isOnline: value }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (value) fetchOrders();
+      const response = await axios.post(
+        `${DRIVER_URL}/status`,
+        { isOnline: value },
+        { headers: { Authorization: `Bearer ${currentToken}` } }
+      );
+
+      if (!response.data.success) {
+        // Backend returned a failure response
+        Alert.alert('Status Error', response.data.message || 'Failed to update status.');
+        setIsOnline(!value); // revert
+      } else if (value) {
+        fetchOrders();
       }
     } catch (error) {
-      console.log("Error toggling status:", error);
-      setIsOnline(!value);
+      const msg =
+        error.response?.data?.message ||
+        error.message ||
+        'Network error. Check your connection.';
+      console.log('Toggle status error:', msg, error);
+      Alert.alert('Connection Error', msg);
+      setIsOnline(!value); // revert
     }
   };
+
 
   // Handle order acceptance
   const handleAcceptOrder = async (item) => {
@@ -225,7 +250,7 @@ export default function HomeScreen({ navigation }) {
 
       if (item.isBatch) {
         const orderIds = item.orders.map(o => o._id);
-        const response = await axios.post(`${ORDER_URL}/delivery/accept-batch`, { orderIds }, {
+        const response = await axios.post(`${ORDER_URL}/accept-batch`, { orderIds }, {
           headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -235,7 +260,7 @@ export default function HomeScreen({ navigation }) {
           Alert.alert("Failed", "Failed to accept batched orders");
         }
       } else {
-        const response = await axios.patch(`${ORDER_URL}/${item._id}/delivery-accept`, {}, {
+        const response = await axios.patch(`${ORDER_URL}/${item._id}/accept`, {}, {
           headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -272,7 +297,7 @@ export default function HomeScreen({ navigation }) {
     fetchOrders();
 
     if (socket) {
-      socket.on('newAvailableOrder', (newOrder) => {
+      socket.on('newOrderReady', (newOrder) => {
         console.log("New order received via socket!", newOrder._id);
         // We can either append to list or refetch
         fetchOrders();
@@ -280,7 +305,7 @@ export default function HomeScreen({ navigation }) {
       });
 
       return () => {
-        socket.off('newAvailableOrder');
+        socket.off('newOrderReady');
       };
     }
   }, [socket]);

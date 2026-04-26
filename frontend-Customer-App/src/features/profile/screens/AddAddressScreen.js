@@ -81,7 +81,8 @@ export default function AddAddressScreen() {
         Alert.alert('Error', result.error || 'Failed to save address');
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+      console.error("[AddAddressScreen] Save Error:", error);
+      Alert.alert('Error', `An unexpected error occurred: ${error.message}`);
     }
   };
 
@@ -346,7 +347,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 160, // Increased further to ensure button is visible above floating bar
   },
   sectionTitle: {
     fontSize: 16,

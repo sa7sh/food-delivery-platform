@@ -127,6 +127,24 @@ export const useOrdersStore = create((set, get) => ({
     }
   },
 
+  // Handle real-time status update from socket
+  handleOrderStatusUpdate: ({ orderId, status }) => {
+    console.log(`[ordersStore] Updating order ${orderId} status to ${status}`);
+
+    // Update in orders list
+    const updatedOrders = get().orders.map((order) =>
+      order.id === orderId ? { ...order, status } : order
+    );
+
+    // Update currentOrder if it's the one that changed
+    let updatedCurrentOrder = get().currentOrder;
+    if (updatedCurrentOrder && updatedCurrentOrder.id === orderId) {
+      updatedCurrentOrder = { ...updatedCurrentOrder, status };
+    }
+
+    set({ orders: updatedOrders, currentOrder: updatedCurrentOrder });
+  },
+
   // Clear error
   clearError: () => set({ error: null }),
 

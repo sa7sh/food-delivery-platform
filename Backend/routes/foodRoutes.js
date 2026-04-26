@@ -98,6 +98,8 @@ router.post("/", protect, upload.single('image'), async (req, res) => {
 
     if (req.file) {
       imageUrl = req.file.path; // Cloudinary URL
+    } else if (imageUrl && imageUrl.startsWith('data:image')) {
+      return res.status(400).json({ message: "Base64 images are not allowed. Please upload using multipart/form-data." });
     }
 
     if (!name || !price || !category) {
@@ -162,6 +164,8 @@ router.put("/:id", protect, upload.single('image'), async (req, res) => {
 
     if (req.file) {
       imageUrl = req.file.path; // Cloudinary URL
+    } else if (imageUrl && imageUrl.startsWith('data:image')) {
+      return res.status(400).json({ message: "Base64 images are not allowed. Please upload using multipart/form-data." });
     }
 
     if (name && name.length > 100) return res.status(400).json({ message: "Name must be under 100 characters" });

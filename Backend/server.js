@@ -1,187 +1,79 @@
-import express from "express";
-import mongoose from "mongoose";
-import dotenv from "dotenv";
-import cors from "cors";
-import rateLimit from "express-rate-limit";
-import cookieParser from "cookie-parser";
-
-// Routes
-import apiRoutes from "./routes/apiRoutes.js";
-import foodRoutes from "./routes/foodRoutes.js";
-import analyticsRoutes from "./routes/analyticsRoutes.js";
-import deliveryAppAuthRoutes from "./routes/deliveryAppAuthRoutes.js";
-import deliveryPartnerRoutes from "./routes/deliveryPartnerRoutes.js";
-import deliveryRatingRoutes from "./routes/deliveryRatingRoutes.js";
-import passwordResetRoutes from "./routes/passwordResetRoutes.js";
-import errorHandler from "./middleware/errorHandler.js";
-import { initSocketService } from "./services/socketService.js";
-
-// Load env variables
-dotenv.config();
-
-// Redis setup
-import { connectRedis } from "./config/redis.js";
-connectRedis();
-
-// 1️⃣ Create Express App FIRST
-// ===============================
-import { createServer } from "http";
-import { Server } from "socket.io";
-import setupCronJobs from "./cronJobs.js";
+import express from 'express';
+import cors from 'cors';
+import { createProxyMiddleware } from 'http-proxy-middleware';
+import compression from 'compression';
+import http from 'http';
+import rateLimit from 'express-rate-limit';
 
 const app = express();
-const httpServer = createServer(app);
 
-// Socket.io Setup
-const io = new Server(httpServer, {
-  cors: {
-    origin: "*", // Allow all origins for development
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    credentials: true
-  }
-});
+app.use(compression());
+app.use(cors());
 
-// Store io instance in app to use in routes (backward compat for unmigrated handlers)
-app.set("socketio", io);
-
-// Initialize socket service — must happen before any route handler fires
-initSocketService(io);
-
-// Check DB Connection
-// checkDbConnection();
-
-// Start Scheduled Jobs
-setupCronJobs();
-
-// Socket Connection Handler
-io.on("connection", (socket) => {
-  console.log(`Socket Connected: ${socket.id}`);
-
-  // Join Restaurant Room
-  socket.on("joinRestaurantRoom", (restaurantId) => {
-    socket.join(`restaurant_${restaurantId}`);
-    console.log(`Socket ${socket.id} joined restaurant_${restaurantId}`);
-  });
-
-  // Join Customer Room
-  socket.on("joinCustomerRoom", (userId) => {
-    socket.join(`customer_${userId}`);
-    console.log(`Socket ${socket.id} joined customer_${userId}`);
-  });
-
-  // Join Delivery Room
-  socket.on("joinDeliveryRoom", () => {
-    socket.join("delivery_partners");
-    console.log(`Socket ${socket.id} joined delivery_partners`);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("Socket Disconnected");
-  });
-});
-
-console.log("Starting server...");
-
-// ===============================
-// 2️⃣ Global Middlewares
-// ===============================
-app.use(
-  cors({
-    origin: "*", // allow all origins for now (dev)
-    credentials: true,
-  })
-);
-
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
-app.use(cookieParser());
-
-// Request logging middleware
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
-  next();
-});
-
-// Cloudinary is used now, no need for static uploads serving
-
-
-// ===============================
-// 3️⃣ Rate Limiter (Auth Only)
-// ===============================
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20,
-  message: {
-    message: "Too many login attempts, please try again later.",
-  },
+// Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,  // 15 minutes
+  max: 100,                   // 100 requests per window per IP
   standardHeaders: true,
   legacyHeaders: false,
+  message: { message: 'Too many requests, please try again later' },
 });
 
-// ===============================
-// 4️⃣ Routes (AFTER app creation)
-// ===============================
-
-// Other API routes (MUST come before auth routes to avoid interception)
-app.use("/api", apiRoutes);
-
-// Auth routes (with limiter) - more specific path
-app.use("/api/auth", authLimiter, apiRoutes);
-app.use("/api/auth", authLimiter, passwordResetRoutes);
-
-// Delivery Partner Auth
-app.use(deliveryAppAuthRoutes);
-
-// Food routes (used by ALL apps)
-app.use("/api/foods", foodRoutes);
-
-// Order routes
-import orderRoutes from "./routes/orderRoutes.js";
-app.use("/api/orders", orderRoutes);
-
-// Review routes
-import reviewRoutes from "./routes/reviewRoutes.js";
-app.use("/api/reviews", reviewRoutes);
-
-// Analytics routes
-// Analytics routes
-app.use("/api/analytics", analyticsRoutes);
-
-// Driver / Delivery Partner Routes
-app.use("/api/driver", deliveryPartnerRoutes);
-app.use("/api/delivery-rating", deliveryRatingRoutes);
-
-// ===============================
-// 5️⃣ Test Routes
-// ===============================
-app.get("/", (req, res) => {
-  res.send("Backend is running");
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { message: 'Too many auth attempts, please try again later' },
 });
 
-app.get("/test", (req, res) => {
-  res.send("Backend working");
+// Apply strict limiters to auth routes
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/send-otp', authLimiter);
+
+// Apply general limiter to all other requests
+app.use(limiter);
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ service: 'api-gateway', status: 'running' });
 });
 
-// ===============================
-// 6️⃣ Global Error Handler
-// ===============================
-// Must be registered AFTER all routes. Handles AppError, Mongoose errors,
-// JWT errors, and JSON parse errors with a consistent { success, message } shape.
-app.use(errorHandler);
+// Keep-alive Agent
+const agent = new http.Agent({ keepAlive: true });
 
-// ===============================
-// 7️⃣ Database Connection
-// ===============================
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.error("MongoDB Error:", err));
+// Route: Auth Service
+app.use(createProxyMiddleware({
+  target: 'http://localhost:5001',
+  changeOrigin: true,
+  pathFilter: '/api/auth',
+  agent,
+}));
 
-// 8️⃣ Start Server
-// ===============================
-const PORT = process.env.PORT || 5000;
+// Route: Restaurant + Food + Review Service
+app.use(createProxyMiddleware({
+  target: 'http://localhost:5002',
+  changeOrigin: true,
+  pathFilter: ['/api/restaurant', '/api/foods', '/api/reviews'],
+  agent,
+}));
 
-httpServer.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Backend accessible at http://localhost:${PORT}`);
+// Route: Order Service
+app.use(createProxyMiddleware({
+  target: 'http://localhost:5003',
+  changeOrigin: true,
+  pathFilter: '/api/orders',
+  ws: true,
+  agent,
+}));
+
+// Route: Delivery Service
+app.use(createProxyMiddleware({
+  target: 'http://localhost:5004',
+  changeOrigin: true,
+  pathFilter: '/api/delivery',
+  agent,
+}));
+
+app.listen(5000, () => {
+  console.log('API Gateway running on port 5000');
 });

@@ -105,20 +105,18 @@ export default function EditProfileScreen() {
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
             aspect: [1, 1],
-            quality: 0.5,
-            base64: true,
+            quality: 0.8,
           })
           : await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
             aspect: [1, 1],
-            quality: 0.5,
-            base64: true,
+            quality: 0.8,
           });
 
         if (!result.canceled && result.assets[0]) {
-          const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
-          setFormData({ ...formData, profileImage: base64Img });
+          const uri = result.assets[0].uri;
+          setFormData({ ...formData, profileImage: uri });
         }
       } catch (error) {
         console.error('Image picker error:', error);

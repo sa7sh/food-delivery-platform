@@ -6,5 +6,8 @@
     "Restaurant-app",
     "DeliveryPartnerApp",
     "Backend"
-  ]
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm --prefix Backend start\" \"npm --prefix services/auth-service start\" \"npm --prefix services/restaurant-service start\" \"npm --prefix services/order-service start\" \"npm --prefix services/delivery-service start\""
+  }
 }

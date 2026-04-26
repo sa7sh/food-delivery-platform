@@ -50,6 +50,13 @@ const DashboardScreen = ({ navigation }) => {
     setRefreshing(false);
   };
 
+  // Auto-refresh analytics when orders change (e.g., via socket)
+  useEffect(() => {
+    if (orders.length > 0) {
+      loadAnalytics();
+    }
+  }, [orders.length, orders[0]?.status]); // Trigger on count changes or most recent status change
+
   const handleToggleStatus = async (value) => {
     try {
       await updateRestaurantProfile({ isOpen: value });
@@ -59,8 +66,8 @@ const DashboardScreen = ({ navigation }) => {
     }
   };
 
-  const displayRevenue = analytics ? analytics.todayRevenue : 0;
-  const displayOrdersCount = analytics ? analytics.todayOrdersCount : 0;
+  const displayRevenue = analytics?.todayRevenue || 0;
+  const displayOrdersCount = analytics?.todayOrdersCount || 0;
 
   const chartData = {
     labels: analytics?.weeklyStats?.labels || ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -146,7 +153,7 @@ const DashboardScreen = ({ navigation }) => {
               </View>
               <View>
                 <Text style={[styles.statLabel, { color: theme.subtext }]}>Rating</Text>
-                <Text style={[styles.statValue, { color: theme.text }]}>{analytics?.averageRating ? parseFloat(analytics.averageRating).toFixed(1) : 'New'}</Text>
+                <Text style={[styles.statValue, { color: theme.text }]}>{analytics?.averageRating ? parseFloat(analytics.averageRating).toFixed(1) : (restaurant?.averageRating || 'New')}</Text>
               </View>
             </View>
 

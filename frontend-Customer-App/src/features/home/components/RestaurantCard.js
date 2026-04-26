@@ -1,14 +1,15 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../../theme';
+import { useTheme } from '../../../hooks/useTheme';
 import Card from '../../../components/ui/Card';
 import Badge from '../../../components/ui/Badge';
 
 export default function RestaurantCard({ restaurant, onPress, isFavorite, onFavoritePress }) {
+  const { colors, isDark } = useTheme();
   const {
     name,
-    restaurantImage: customRestaurantImage, // rename to avoid conflict
+    restaurantImage: customRestaurantImage,
     profileImage,
     image,
     rating,
@@ -22,16 +23,13 @@ export default function RestaurantCard({ restaurant, onPress, isFavorite, onFavo
     isOpen = true,
   } = restaurant;
 
-  // Use restaurantImage from backend, fallback to profileImage, then image, or default
   const displayImage = customRestaurantImage || profileImage || image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800';
-
-  // Handle cuisine as array or single string
   const cuisineArray = Array.isArray(cuisine) ? cuisine : (cuisineType ? [cuisineType] : ['Restaurant']);
 
   return (
     <Card onPress={onPress} style={styles.card}>
       {/* Restaurant Image */}
-      <View style={styles.imageContainer}>
+      <View style={[styles.imageContainer, { backgroundColor: colors.surfaceHighlight }]}>
         <Image
           source={{ uri: displayImage }}
           style={styles.image}
@@ -43,8 +41,8 @@ export default function RestaurantCard({ restaurant, onPress, isFavorite, onFavo
           </View>
         )}
         {offers && offers.length > 0 && (
-          <View style={styles.offerBadge}>
-            <Text style={styles.offerText}>🎉 {offers[0]}</Text>
+          <View style={[styles.offerBadge, { backgroundColor: isDark ? colors.surface : colors.white }]}>
+            <Text style={[styles.offerText, { color: colors.primary[600] }]}>🎉 {offers[0]}</Text>
           </View>
         )}
         {/* Favorite Icon */}
@@ -62,30 +60,26 @@ export default function RestaurantCard({ restaurant, onPress, isFavorite, onFavo
 
       {/* Restaurant Info */}
       <View style={styles.info}>
-        <Text style={styles.name} numberOfLines={1}>{name}</Text>
+        <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{name}</Text>
 
         <View style={styles.row}>
           <View style={styles.rating}>
             <Text style={styles.star}>⭐</Text>
-            <Text style={styles.ratingText}>
+            <Text style={[styles.ratingText, { color: colors.textSub }]}>
               {rating || 4.5} ({ratingCount || 0})
             </Text>
           </View>
-          <Text style={styles.dot}>•</Text>
-          <Text style={styles.deliveryTime}>{deliveryTime || '25-35 min'}</Text>
+          <Text style={[styles.dot, { color: colors.border }]}>•</Text>
+          <Text style={[styles.deliveryTime, { color: colors.textSub }]}>{deliveryTime || '25-35 min'}</Text>
         </View>
 
-        <Text style={styles.cuisine} numberOfLines={1}>
+        <Text style={[styles.cuisine, { color: colors.textSub }]} numberOfLines={1}>
           {cuisineArray.join(', ')}
         </Text>
 
         <View style={styles.footer}>
-          <Text style={styles.cost}>₹{costForTwo || 300} for two</Text>
           {distance && (
-            <>
-              <Text style={styles.dot}>•</Text>
-              <Text style={styles.distance}>{distance}</Text>
-            </>
+            <Text style={[styles.distance, { color: colors.textSub }]}>{distance}</Text>
           )}
         </View>
       </View>
@@ -103,7 +97,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
     height: 160,
-    backgroundColor: colors.gray[100],
   },
   image: {
     width: '100%',
@@ -120,7 +113,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   closedText: {
-    color: colors.white,
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -128,7 +121,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 8,
     left: 8,
-    backgroundColor: colors.white,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
@@ -136,7 +128,6 @@ const styles = StyleSheet.create({
   offerText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.primary[600],
   },
   info: {
     padding: 12,
@@ -144,7 +135,6 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: colors.gray[900],
     marginBottom: 6,
   },
   row: {
@@ -162,35 +152,25 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 13,
-    color: colors.gray[600],
     fontWeight: '600',
   },
   dot: {
     fontSize: 13,
-    color: colors.gray[400],
     marginHorizontal: 6,
   },
   deliveryTime: {
     fontSize: 13,
-    color: colors.gray[600],
   },
   cuisine: {
     fontSize: 13,
-    color: colors.gray[500],
     marginBottom: 6,
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  cost: {
-    fontSize: 13,
-    color: colors.gray[600],
-    fontWeight: '500',
-  },
   distance: {
     fontSize: 13,
-    color: colors.gray[500],
   },
   favoriteButton: {
     position: 'absolute',

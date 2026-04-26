@@ -45,7 +45,7 @@ export default function EarningsScreen() {
   const fetchEarnings = async () => {
     try {
       if (!token) return;
-      const response = await fetch(`${API_URL}/orders/delivery/my-earnings`, {
+      const response = await fetch(`${API_URL}/delivery/partners/dashboard`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const json = await response.json();
