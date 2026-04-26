@@ -72,3 +72,19 @@ RestaurantPartnerExpo/
 **/web-build/
 **/ios
 **/android
+
+# Credentials and Secrets
+**/credentials.json
+**/*-key.json
+**/*-secret.json
+**/*.keystore
+**/*.jks
+**/*.p12
+**/*.p8
+**/*.pem
+**/*.key
+**/google-services.json
+**/GoogleService-Info.plist
+**/aws-exports.js
+**/.env.*
+!**/.env.example
